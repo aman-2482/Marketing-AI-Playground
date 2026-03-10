@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronRight, Zap } from "lucide-react";
+import { ChevronRight, Zap, Search, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { getActivity, generateActivity, type Activity, type InputField } from "@/lib/api";
+import { getActivity, generateActivity, generatePlayground, type Activity, type InputField } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,37 @@ export default function ActivityDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("activity");
+  const [researchingCompetitors, setResearchingCompetitors] = useState(false);
+  const [researchError, setResearchError] = useState("");
+
+  async function handleResearchCompetitors() {
+    const product = formData["product"] || "";
+    if (!product.trim()) {
+      setResearchError("Fill in \"Your Product\" first so AI knows what to search for.");
+      return;
+    }
+    setResearchingCompetitors(true);
+    setResearchError("");
+    try {
+      const result = await generatePlayground({
+        prompt: `Product description: ${product}\n\nList exactly 5 well-known direct competitors for this product. Return ONLY the competitor names, one per line, no numbering, no extra text.`,
+        system_prompt: "You are a market research expert. Given a product description, identify its 5 most direct and well-known competitors. Respond with only the competitor names, one per line.",
+        temperature: 0.3,
+        session_id: getSessionId(),
+        model,
+      });
+      const names = result.response
+        .split("\n")
+        .map((l) => l.replace(/^[-*\d.]+\s*/, "").trim())
+        .filter(Boolean)
+        .join(", ");
+      setFormData((prev) => ({ ...prev, competitors: names }));
+    } catch (err) {
+      setResearchError(err instanceof Error ? err.message : "Research failed");
+    } finally {
+      setResearchingCompetitors(false);
+    }
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -155,6 +186,32 @@ export default function ActivityDetail() {
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
                   {field.label}
                 </label>
+                {/* Auto-research button for competitors field */}
+                {slug === "competitive-intelligence-lab" && field.name === "competitors" && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleResearchCompetitors}
+                      disabled={researchingCompetitors || !formData["product"]?.trim()}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border",
+                        researchingCompetitors || !formData["product"]?.trim()
+                          ? "bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed"
+                          : "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/50"
+                      )}
+                    >
+                      {researchingCompetitors
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Researching…</>
+                        : <><Search className="w-3.5 h-3.5" /> Auto-research competitors</>}
+                    </button>
+                    {!formData["product"]?.trim() && (
+                      <p className="text-xs text-slate-400 dark:text-slate-500">Fill in "Your Product" first to enable auto-research.</p>
+                    )}
+                    {researchError && (
+                      <p className="text-xs text-red-500 dark:text-red-400">{researchError}</p>
+                    )}
+                  </div>
+                )}
                 {field.type === "textarea" ? (
                   <Textarea
                     value={formData[field.name] || ""}
