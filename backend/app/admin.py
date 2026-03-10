@@ -32,8 +32,15 @@ class AdminAuthBackend(AuthenticationBackend):
         return True
 
     async def authenticate(self, request: Request) -> bool | RedirectResponse:
-        if not request.session.get("admin_authenticated", False):
+        authenticated = request.session.get("admin_authenticated", False)
+        if not authenticated:
+            # Return RedirectResponse only for non-login pages;
+            # sqladmin will show login form for any non-True response on /admin/login
             return RedirectResponse(url="/admin/login", status_code=302)
+        # After authentication, redirect bare /admin root → activity list
+        # so the blank index page is never shown
+        if request.url.path.rstrip("/") == "/admin":
+            return RedirectResponse(url="/admin/activity/list", status_code=302)
         return True
 
 
@@ -42,6 +49,9 @@ class ActivityAdmin(ModelView, model=Activity):
     column_searchable_list = [Activity.name, Activity.slug]
     column_sortable_list = [Activity.id, Activity.name, Activity.order]
     form_excluded_columns = [Activity.created_at]
+    # Show this view selected by default in the sidebar
+    name = "Activity"
+    icon = "fa-solid fa-list"
 
 
 class PromptHistoryAdmin(ModelView, model=PromptHistory):

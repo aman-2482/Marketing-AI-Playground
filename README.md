@@ -18,7 +18,7 @@ docker compose up --build
 
 # 4. Open your browser
 # App: http://localhost:3000
-# Admin Panel: http://localhost:3000/admin
+# Admin Panel: http://localhost:3000/admin/login
 # API Docs: http://localhost:8000/docs
 ```
 
