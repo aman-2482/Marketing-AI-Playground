@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { GitCompare } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -54,6 +54,7 @@ export default function Compare() {
   const [usedModelB, setUsedModelB] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const outputRef = useRef<HTMLDivElement>(null);
 
   async function handleCompare() {
     if (!promptA.trim() || !promptB.trim()) return;
@@ -75,6 +76,7 @@ export default function Compare() {
       setOutputB(result.response_b);
       setUsedModelA(result.model_a);
       setUsedModelB(result.model_b);
+      setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Comparison failed");
     } finally {
@@ -216,7 +218,7 @@ export default function Compare() {
 
       {/* Side-by-side output */}
       {(outputA || outputB) && (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div ref={outputRef} className="grid md:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
