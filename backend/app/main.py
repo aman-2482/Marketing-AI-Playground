@@ -1,0 +1,108 @@
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.admin import setup_admin
+from app.ai_service import AVAILABLE_MODELS, DEFAULT_MODEL
+from app.config import settings
+from app.database import Base, SessionLocal, engine
+from app.models import Activity, PromptHistory  # noqa: F401 — registers tables with Base
+from app.rate_limit import limiter
+from app.routers import activities, history, playground
+from app.seed.activities import ACTIVITIES
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Startup helpers
+# ---------------------------------------------------------------------------
+
+def _seed_activities() -> None:
+    """Upsert guided activities on every launch so seed changes take effect."""
+    db = SessionLocal()
+    try:
+        added = updated = 0
+        for data in ACTIVITIES:
+            existing = db.query(Activity).filter(Activity.slug == data["slug"]).first()
+            if existing:
+                for key, value in data.items():
+                    setattr(existing, key, value)
+                updated += 1
+            else:
+                db.add(Activity(**data))
+                added += 1
+        db.commit()
+        logger.info("Seed complete — %d added, %d updated.", added, updated)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Create database tables and seed data before serving requests."""
+    Base.metadata.create_all(bind=engine)
+    _seed_activities()
+    yield
+
+
+# ---------------------------------------------------------------------------
+# Application
+# ---------------------------------------------------------------------------
+
+app = FastAPI(
+    title="GenAI Marketing Lab",
+    description="A hands-on AI playground for marketing professionals to practice prompt engineering and content creation.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Middleware — last added = outermost = runs first.
+# Execution order: CORS → Session → app
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Routers
+app.include_router(playground.router)
+app.include_router(activities.router)
+app.include_router(history.router)
+
+# Admin UI (mounted at /admin/)
+setup_admin(app, engine)
+
+
+# ---------------------------------------------------------------------------
+# Meta endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/models", tags=["meta"])
+def list_models():
+    """Return the list of AI models available for selection."""
+    return {"models": AVAILABLE_MODELS, "default": DEFAULT_MODEL}
+
+
+@app.get("/api/health", tags=["meta"])
+def health():
+    """Simple liveness probe."""
+    return {"status": "ok", "app": "GenAI Marketing Lab"}
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "app": "GenAI Marketing Lab"}
