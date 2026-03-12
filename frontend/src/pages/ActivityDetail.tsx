@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronRight, Zap, Search, Loader2 } from "lucide-react";
+import { ChevronRight, Zap, Search, Loader2, Check, Copy } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
@@ -25,6 +25,13 @@ export default function ActivityDetail() {
   const [activeTab, setActiveTab] = useState<Tab>("activity");
   const [researchingCompetitors, setResearchingCompetitors] = useState(false);
   const [researchError, setResearchError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(output);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleResearchCompetitors() {
     const product = formData["product"] || "";
@@ -325,10 +332,15 @@ export default function ActivityDetail() {
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">AI Output</p>
               {output && (
                 <button
-                  onClick={() => navigator.clipboard.writeText(output)}
-                  className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors px-2 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                  onClick={handleCopy}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 text-xs font-medium transition-all px-2.5 py-1 rounded-lg border",
+                    copied
+                      ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  )}
                 >
-                  Copy
+                  {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
                 </button>
               )}
             </div>
