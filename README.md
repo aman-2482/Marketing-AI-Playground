@@ -21,7 +21,9 @@ docker compose up --build
 # Admin Panel: http://localhost:3000/admin/login
 #   Username: admin
 #   Password: 112233
+#   (Change via ADMIN_USERNAME and ADMIN_PASSWORD env vars)
 # API Docs: http://localhost:8000/docs
+# Health Check: http://localhost:8000/api/health
 ```
 
 ## Features
@@ -150,4 +152,19 @@ Frontend runs at `http://localhost:5173` with API proxied to `http://localhost:8
 | `OPENROUTER_API_KEY` | OpenRouter API key (required) — get one at [openrouter.ai](https://openrouter.ai) | - |
 | `DATABASE_URL` | Database connection string | `sqlite:///./genai_marketing_lab.db` |
 | `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:5173,http://localhost:3000` |
+| `SECRET_KEY` | Secret key for sessions/auth | `change-me-in-production` |
+| `ADMIN_USERNAME` | Admin panel username | `admin` |
+| `ADMIN_PASSWORD` | Admin panel password | `112233` |
 | `ENV` | Environment | `development` |
+
+### Changing Admin Credentials with Docker
+
+```bash
+# Option 1: Set environment variables in .env file
+echo "ADMIN_USERNAME=myuser" >> .env
+echo "ADMIN_PASSWORD=mypassword" >> .env
+docker compose up --build
+
+# Option 2: Pass directly to docker compose
+ADMIN_USERNAME=myuser ADMIN_PASSWORD=mypassword docker compose up --build
+```

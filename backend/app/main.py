@@ -103,8 +103,3 @@ def list_models():
 def health():
     """Simple liveness probe."""
     return {"status": "ok", "app": "GenAI Marketing Lab"}
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok", "app": "GenAI Marketing Lab"}
