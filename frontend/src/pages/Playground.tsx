@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Copy, Check, Zap, Sparkles, RotateCcw, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, Check, Zap, Sparkles, SquarePen, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
@@ -218,7 +218,7 @@ export default function Playground() {
                     title="Start a new prompt"
                     className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                   >
-                    <RotateCcw className="w-3 h-3" />
+                    <SquarePen className="w-3 h-3" />
                     New Prompt
                   </button>
                 )}
