@@ -27,6 +27,7 @@ export default function ActivityDetail() {
   const [researchingCompetitors, setResearchingCompetitors] = useState(false);
   const [researchError, setResearchError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [lastFormData, setLastFormData] = useState<Record<string, string>>({});
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
 
@@ -132,6 +133,8 @@ export default function ActivityDetail() {
       });
       setOutput(result.response);
       if (slug) markActivityCompleted(slug);
+      setLastFormData(formData);
+      setFormData({});
       loadActivityHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -216,7 +219,19 @@ export default function ActivityDetail() {
         <div className="grid lg:grid-cols-[2fr_3fr] gap-6" style={{ height: "calc(100vh - 160px)" }}>
           {/* Input Form */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 overflow-y-auto h-full">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Input</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Input</p>
+              {Object.keys(lastFormData).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFormData(lastFormData)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                >
+                  <Copy className="w-3 h-3" />
+                  Use previous prompt
+                </button>
+              )}
+            </div>
 
             {fields.map((field) => (
               <div key={field.name} className="space-y-1.5">
@@ -396,7 +411,7 @@ export default function ActivityDetail() {
       )}
 
       {/* Activity History */}
-      {historyEntries.length > 0 && (
+      {historyEntries.length > 0 && activeTab === "activity" && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
