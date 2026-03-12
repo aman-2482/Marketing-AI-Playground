@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Check, Zap } from "lucide-react";
+import { Copy, Check, Zap, Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
@@ -40,6 +40,27 @@ export default function Playground() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [improvingPrompt, setImprovingPrompt] = useState(false);
+
+  async function handleImprovePrompt() {
+    if (!prompt.trim()) return;
+    setImprovingPrompt(true);
+    setError("");
+    try {
+      const result = await generatePlayground({
+        prompt: `Here is my current prompt:\n\n"${prompt}"\n\nRewrite this as a single, improved prompt that is more specific, detailed, and likely to produce better AI output for marketing purposes. Return ONLY the improved prompt text itself — no explanations, no labels, no preamble.`,
+        system_prompt: "You are an expert prompt engineer specializing in marketing AI applications. When given a prompt, rewrite it to be more specific, targeted, and effective. Output only the improved prompt — nothing else.",
+        temperature: 0.4,
+        model,
+        session_id: getSessionId(),
+      });
+      setPrompt(result.response.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to improve prompt");
+    } finally {
+      setImprovingPrompt(false);
+    }
+  }
 
   async function handleGenerate() {
     if (!prompt.trim()) return;
@@ -135,8 +156,29 @@ export default function Playground() {
 
         {/* Input + Output */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Your Prompt</p>
+          <div className={cn(
+            "bg-white dark:bg-slate-900 border rounded-2xl p-5 transition-all duration-200",
+            prompt.trim()
+              ? "border-violet-400 dark:border-violet-600 shadow-sm shadow-violet-100 dark:shadow-violet-900/20"
+              : "border-slate-200 dark:border-slate-800"
+          )}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Your Prompt</p>
+              <button
+                onClick={handleImprovePrompt}
+                disabled={improvingPrompt || !prompt.trim()}
+                title="Get AI coaching on how to improve this prompt"
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-all",
+                  improvingPrompt || !prompt.trim()
+                    ? "text-slate-300 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed"
+                    : "text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50"
+                )}
+              >
+                <Sparkles className="w-3 h-3" />
+                {improvingPrompt ? "Improving…" : "Improve my prompt"}
+              </button>
+            </div>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
