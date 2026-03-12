@@ -69,6 +69,7 @@ export default function Layout() {
   const authUser = getAuthUser();
   const [tipIndex, setTipIndex] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     return localStorage.getItem("theme") === "dark" ||
       (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -94,7 +95,12 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        setUserDialogOpen(false);
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
@@ -150,25 +156,52 @@ export default function Layout() {
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* User info + Logout */}
+          {/* User info */}
           {authUser && (
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <User className="w-3.5 h-3.5 text-violet-500" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{authUser.username}</span>
-              </div>
-              <button
-                onClick={() => { clearAuthUser(); navigate("/"); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-all"
-                aria-label="Logout"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:block">Logout</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setUserDialogOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              <User className="w-3.5 h-3.5 text-violet-500" />
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{authUser.username}</span>
+            </button>
           )}
         </div>
       </header>
+
+      {/* User Dialog */}
+      {userDialogOpen && authUser && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/35 z-40"
+            onClick={() => setUserDialogOpen(false)}
+          />
+          <div className="fixed z-50 top-16 right-4 w-72 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl p-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                <User className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{authUser.username}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Signed in</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setUserDialogOpen(false);
+                clearAuthUser();
+                navigate("/");
+              }}
+              className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-all"
+              aria-label="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ── Drawer ── */}
       {drawerOpen && (
@@ -208,6 +241,23 @@ export default function Layout() {
                   <NavItem {...item} />
                 </div>
               ))}
+
+              {authUser && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      clearAuthUser();
+                      navigate("/");
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-all"
+                    aria-label="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </nav>
 
             {/* Rotating Learning Tips */}
