@@ -16,6 +16,22 @@ function slugToLabel(slug: string | null): string {
     .join(" ");
 }
 
+function parseCompareData(entry: HistoryEntry): { promptA: string; promptB: string; modelA: string; modelB: string } | null {
+  if (entry.activity_slug !== "__compare__") return null;
+  try {
+    const p = JSON.parse(entry.prompt) as { prompt_a: string; prompt_b: string };
+    const parts = entry.model.split("|||");
+    return {
+      promptA: p.prompt_a ?? "",
+      promptB: p.prompt_b ?? "",
+      modelA: parts[0] ?? "",
+      modelB: parts[1] ?? ""
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function History() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -56,7 +72,6 @@ export default function History() {
   }
 
   const filtered = entries
-    .filter((e) => e.activity_slug !== "__compare__")
     .filter((e) => !filterFavorites || e.is_favorite)
     .filter((e) =>
       !search.trim() ||
@@ -140,6 +155,7 @@ export default function History() {
         <div className="space-y-3">
           {paginated.map((entry) => {
             const isExpanded = expandedId === entry.id;
+            const compareData = parseCompareData(entry);
             return (
               <div
                 key={entry.id}
@@ -162,9 +178,21 @@ export default function History() {
                       )}>
                         {slugToLabel(entry.activity_slug)}
                       </span>
-                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
-                        {entry.model.split("/").pop()}
-                      </span>
+                      {compareData ? (
+                        <>
+                          <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                            {compareData.modelA.split("/").pop()}
+                          </span>
+                          <span className="text-xs text-slate-400">vs</span>
+                          <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                            {compareData.modelB.split("/").pop()}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                          {entry.model.split("/").pop()}
+                        </span>
+                      )}
                       <span className="text-xs text-slate-500 dark:text-slate-500">
                         {new Date(entry.created_at).toLocaleString(undefined, {
                               year: "numeric", month: "short", day: "numeric",
@@ -172,9 +200,20 @@ export default function History() {
                             })}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
-                      {entry.prompt}
-                    </p>
+                    {compareData ? (
+                      <div className="space-y-1">
+                        <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 leading-relaxed">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">A:</span> {compareData.promptA}
+                        </p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 leading-relaxed">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">B:</span> {compareData.promptB}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                        {entry.prompt}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
@@ -206,7 +245,46 @@ export default function History() {
                 {/* Expanded output */}
                 {isExpanded && (
                   <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
-                    <MarkdownOutput content={entry.response} />
+                    {compareData ? (
+                      <div className="grid lg:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                              <span className="text-xs font-bold text-blue-600 dark:text-blue-400">A</span>
+                            </div>
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{compareData.modelA.split("/").pop()}</span>
+                          </div>
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <MarkdownOutput content={(() => {
+                              try {
+                                return JSON.parse(entry.response).response_a || "No response";
+                              } catch {
+                                return "Error loading response";
+                              }
+                            })()} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">B</span>
+                            </div>
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{compareData.modelB.split("/").pop()}</span>
+                          </div>
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <MarkdownOutput content={(() => {
+                              try {
+                                return JSON.parse(entry.response).response_b || "No response";
+                              } catch {
+                                return "Error loading response";
+                              }
+                            })()} />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <MarkdownOutput content={entry.response} />
+                    )}
                   </div>
                 )}
               </div>
