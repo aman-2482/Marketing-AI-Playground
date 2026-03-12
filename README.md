@@ -22,7 +22,8 @@ docker compose up --build
 # Admin Panel: http://localhost:3000/admin/login
 
 #   Username: admin
-#   Password: 112233
+#   Password: change-me
+
 #   (Change via ADMIN_USERNAME and ADMIN_PASSWORD env vars)
 
 # API Docs: http://localhost:8000/docs
@@ -176,7 +177,7 @@ cd backend; python -m pytest
 | `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:5173,http://localhost:3000` |
 | `SECRET_KEY` | Secret key for sessions/auth | `change-me-in-production` |
 | `ADMIN_USERNAME` | Admin panel username | `admin` |
-| `ADMIN_PASSWORD` | Admin panel password | `112233` |
+| `ADMIN_PASSWORD` | Admin panel password | `change-me` |
 | `ENV` | Environment | `development` |
 
 ### Changing Admin Credentials with Docker

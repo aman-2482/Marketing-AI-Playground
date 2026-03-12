@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Zap, BookOpen, FlaskConical, Star, BarChart2, CheckCircle2 } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
-import { getCompletedActivities } from "@/lib/progress";
+import { getCompletedActivitiesSynced } from "@/lib/progress";
 
 const FEATURES = [
   {
@@ -67,8 +67,16 @@ export default function Home() {
   const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    listActivities().then(setActivities).catch(console.error);
-    setCompletedSlugs(getCompletedActivities());
+    let isMounted = true;
+    listActivities().then((data) => {
+      if (isMounted) setActivities(data);
+    }).catch(console.error);
+    getCompletedActivitiesSynced().then((completed) => {
+      if (isMounted) setCompletedSlugs(completed);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

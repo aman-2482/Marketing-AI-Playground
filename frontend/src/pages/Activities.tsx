@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, Search, X } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
 import { ICON_MAP, DEFAULT_ICON, cn } from "@/lib/utils";
-import { getCompletedActivities } from "@/lib/progress";
+import { getCompletedActivitiesSynced } from "@/lib/progress";
 
 export default function Activities() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -12,8 +12,16 @@ export default function Activities() {
   const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    listActivities().then(setActivities).catch(console.error);
-    setCompletedSlugs(getCompletedActivities());
+    let isMounted = true;
+    listActivities().then((data) => {
+      if (isMounted) setActivities(data);
+    }).catch(console.error);
+    getCompletedActivitiesSynced().then((completed) => {
+      if (isMounted) setCompletedSlugs(completed);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const categories = ["All", ...new Set(activities.map((a) => a.category))];
