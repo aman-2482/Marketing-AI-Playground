@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Zap, BookOpen, FlaskConical, Star, BarChart2 } from "lucide-react";
+import { ArrowRight, Zap, BookOpen, FlaskConical, Star, BarChart2, CheckCircle2 } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
+import { getCompletedActivities } from "@/lib/progress";
 
 const FEATURES = [
   {
@@ -63,9 +64,11 @@ const HOW_IT_WORKS = [
 
 export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     listActivities().then(setActivities).catch(console.error);
+    setCompletedSlugs(getCompletedActivities());
   }, []);
 
   return (
@@ -138,13 +141,39 @@ export default function Home() {
             View all <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
+        {activities.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                Skill progress
+              </span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {completedSlugs.size}/{activities.length} completed
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-emerald-500 transition-all duration-500"
+                style={{ width: `${activities.length ? (completedSlugs.size / activities.length) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {activities.slice(0, 8).map((activity) => (
             <Link
               key={activity.slug}
               to={`/activities/${activity.slug}`}
-              className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:shadow-md hover:border-violet-200 dark:hover:border-violet-800 transition-all"
+              className={`group bg-white dark:bg-slate-900 border rounded-2xl p-4 hover:shadow-md transition-all relative ${
+                completedSlugs.has(activity.slug)
+                  ? "border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700"
+                  : "border-slate-200 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-800"
+              }`}
             >
+              {completedSlugs.has(activity.slug) && (
+                <CheckCircle2 className="absolute top-3 right-3 w-3.5 h-3.5 text-emerald-500" />
+              )}
               <div className="text-2xl mb-2">
                 {ICON_MAP[activity.icon as keyof typeof ICON_MAP] ?? DEFAULT_ICON}
               </div>

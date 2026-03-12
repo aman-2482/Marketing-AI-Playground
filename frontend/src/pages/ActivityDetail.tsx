@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronRight, Zap, Search, Loader2, Check, Copy } from "lucide-react";
+import { ChevronRight, Zap, Search, Loader2, Check, Copy, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { getActivity, generateActivity, generatePlayground, type Activity, type InputField } from "@/lib/api";
+import { getActivity, generateActivity, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
+import { markActivityCompleted } from "@/lib/progress";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,32 @@ export default function ActivityDetail() {
   const [researchingCompetitors, setResearchingCompetitors] = useState(false);
   const [researchError, setResearchError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+
+  async function loadActivityHistory() {
+    try {
+      const all = await listHistory(getSessionId(), 100);
+      setHistoryEntries(all.filter((e) => e.activity_slug === slug));
+    } catch {
+      // non-critical
+    }
+  }
+
+  async function handleHistoryFavorite(entry: HistoryEntry) {
+    try {
+      const updated = await toggleFavorite(entry.id, !entry.is_favorite);
+      setHistoryEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    } catch { /* ignore */ }
+  }
+
+  async function handleHistoryDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+    try {
+      await deleteHistory(id);
+      setHistoryEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch { /* ignore */ }
+  }
 
   function handleCopy() {
     navigator.clipboard.writeText(output);
@@ -75,6 +102,7 @@ export default function ActivityDetail() {
         setFormData({});
       }
     });
+    loadActivityHistory();
   }, [slug]);
 
   function buildPrompt(): string {
@@ -103,6 +131,8 @@ export default function ActivityDetail() {
         model,
       });
       setOutput(result.response);
+      if (slug) markActivityCompleted(slug);
+      loadActivityHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -361,6 +391,78 @@ export default function ActivityDetail() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity History */}
+      {historyEntries.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Past Runs
+            </h2>
+            <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+              {historyEntries.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {historyEntries.map((entry) => {
+              const isExpanded = expandedHistoryId === entry.id;
+              return (
+                <div
+                  key={entry.id}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden"
+                >
+                  <div
+                    className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
+                    onClick={() => setExpandedHistoryId(isExpanded ? null : entry.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                          {entry.model.split("/").pop()}
+                        </span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">
+                          {new Date(entry.created_at).toLocaleString(undefined, {
+                              year: "numeric", month: "short", day: "numeric",
+                              hour: "2-digit", minute: "2-digit"
+                            })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1 leading-relaxed">
+                        {entry.prompt}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleHistoryFavorite(entry); }}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        title={entry.is_favorite ? "Unfavorite" : "Favorite"}
+                      >
+                        <Star className={cn("w-3.5 h-3.5", entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleHistoryDelete(entry.id); }}
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-300 dark:text-slate-600 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      {isExpanded
+                        ? <ChevronUp className="w-4 h-4 text-slate-400 ml-1" />
+                        : <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
+                      <MarkdownOutput content={entry.response} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -127,7 +127,7 @@ export interface HistoryEntry {
   created_at: string;
 }
 
-export function listHistory(sessionId: string = "default", limit: number = 50) {
+export function listHistory(sessionId: string = "default", limit: number = 500) {
   return request<HistoryEntry[]>(`/history/?session_id=${sessionId}&limit=${limit}`);
 }
 

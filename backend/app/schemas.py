@@ -1,8 +1,8 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, field_serializer
 
 
 # ---------------------------------------------------------------------------
@@ -123,9 +123,14 @@ class HistoryOut(BaseModel):
     is_favorite: bool
     created_at: datetime
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, v: datetime) -> str:
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     model_config = {"from_attributes": True}
 
 
 class FavoriteToggle(BaseModel):
-    is_favorite: bool
     is_favorite: bool

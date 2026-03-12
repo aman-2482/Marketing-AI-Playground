@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { getCompletedActivities } from "@/lib/progress";
 
 export default function Activities() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filter, setFilter] = useState<string>("All");
+  const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     listActivities().then(setActivities).catch(console.error);
+    setCompletedSlugs(getCompletedActivities());
   }, []);
 
   const categories = ["All", ...new Set(activities.map((a) => a.category))];
@@ -20,11 +23,33 @@ export default function Activities() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Guided Activities</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Structured exercises with objectives, instructions, tips, and pre-filled examples.
-        </p>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Guided Activities</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+              Structured exercises with objectives, instructions, tips, and pre-filled examples.
+            </p>
+          </div>
+          {activities.length > 0 && (
+            <div className="text-right shrink-0 ml-4">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {completedSlugs.size}/{activities.length} completed
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">skill progress</p>
+            </div>
+          )}
+        </div>
+        {activities.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
+                style={{ width: `${(completedSlugs.size / activities.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Category filter */}
@@ -51,8 +76,16 @@ export default function Activities() {
           <Link
             key={activity.slug}
             to={`/activities/${activity.slug}`}
-            className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:shadow-md hover:border-violet-200 dark:hover:border-violet-800 transition-all flex flex-col"
+            className={cn(
+              "group bg-white dark:bg-slate-900 border rounded-2xl p-5 hover:shadow-md transition-all flex flex-col relative",
+              completedSlugs.has(activity.slug)
+                ? "border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 dark:hover:border-emerald-700"
+                : "border-slate-200 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-800"
+            )}
           >
+            {completedSlugs.has(activity.slug) && (
+              <CheckCircle2 className="absolute top-3.5 right-3.5 w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            )}
             <div className="text-2xl mb-3">
               {ICON_MAP[activity.icon as keyof typeof ICON_MAP] ?? DEFAULT_ICON}
             </div>
@@ -62,8 +95,12 @@ export default function Activities() {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed flex-1 line-clamp-3">
               {activity.description}
             </p>
-            <div className="flex items-center gap-1 mt-4 text-xs font-semibold text-violet-500 group-hover:gap-2 transition-all">
-              Start <ArrowRight className="w-3 h-3" />
+            <div className={cn(
+              "flex items-center gap-1 mt-4 text-xs font-semibold group-hover:gap-2 transition-all",
+              completedSlugs.has(activity.slug) ? "text-emerald-500" : "text-violet-500"
+            )}>
+              <span className="leading-none">{completedSlugs.has(activity.slug) ? "Redo" : "Start"}</span>
+              <ArrowRight className="w-3 h-3 shrink-0" />
             </div>
           </Link>
         ))}

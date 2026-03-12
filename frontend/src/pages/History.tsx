@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { Star, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { Star, Trash2, ChevronDown, ChevronUp, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import { listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
+const PAGE_SIZE = 20;
+
 export default function History() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filterFavorites, setFilterFavorites] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     loadHistory();
@@ -33,6 +36,7 @@ export default function History() {
   }
 
   async function handleDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this entry?")) return;
     try {
       await deleteHistory(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -42,6 +46,14 @@ export default function History() {
   }
 
   const filtered = filterFavorites ? entries.filter((e) => e.is_favorite) : entries;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function handleFilterToggle() {
+    setFilterFavorites((v) => !v);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-6">
@@ -56,7 +68,7 @@ export default function History() {
       {/* Controls */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setFilterFavorites(!filterFavorites)}
+          onClick={handleFilterToggle}
           className={cn(
             "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
             filterFavorites
@@ -67,7 +79,7 @@ export default function History() {
           <Star className={cn("w-3.5 h-3.5", filterFavorites && "fill-amber-500 text-amber-500")} />
           {filterFavorites ? "Showing favorites" : "All entries"}
         </button>
-        <span className="text-sm text-slate-400 dark:text-slate-500">{filtered.length} entries</span>
+        <span className="text-sm text-slate-400 dark:text-slate-500">{filtered.length} {filtered.length === 1 ? "entry" : "entries"}</span>
       </div>
 
       {/* Empty state */}
@@ -85,7 +97,7 @@ export default function History() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((entry) => {
+          {paginated.map((entry) => {
             const isExpanded = expandedId === entry.id;
             return (
               <div
@@ -108,7 +120,10 @@ export default function History() {
                         {entry.model.split("/").pop()}
                       </span>
                       <span className="text-xs text-slate-400 dark:text-slate-500">
-                        {new Date(entry.created_at).toLocaleString()}
+                        {new Date(entry.created_at).toLocaleString(undefined, {
+                              year: "numeric", month: "short", day: "numeric",
+                              hour: "2-digit", minute: "2-digit"
+                            })}
                       </span>
                     </div>
                     <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
@@ -151,6 +166,45 @@ export default function History() {
               </div>
             );
           })}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={cn(
+                      "w-8 h-8 rounded-lg text-xs font-medium transition-all",
+                      p === currentPage
+                        ? "bg-violet-600 text-white"
+                        : "border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
