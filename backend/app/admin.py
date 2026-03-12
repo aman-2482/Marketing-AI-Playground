@@ -49,7 +49,7 @@ class ActivityAdmin(ModelView, model=Activity):
     column_searchable_list = [Activity.name, Activity.slug]
     column_sortable_list = [Activity.id, Activity.name, Activity.order]
     form_excluded_columns = [Activity.created_at]
-    # Show this view selected by default in the sidebar
+    
     name = "Activity"
     icon = "fa-solid fa-list"
 
@@ -66,6 +66,8 @@ class PromptHistoryAdmin(ModelView, model=PromptHistory):
     column_searchable_list = [PromptHistory.prompt, PromptHistory.session_id]
     column_sortable_list = [PromptHistory.id, PromptHistory.created_at]
     column_default_sort = (PromptHistory.created_at, True)
+    name = "Prompt History"
+    icon = "fa-solid fa-clock-rotate-left"
 
 
 def setup_admin(app, engine) -> Admin:
