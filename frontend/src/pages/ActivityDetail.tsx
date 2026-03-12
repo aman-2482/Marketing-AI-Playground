@@ -421,17 +421,17 @@ export default function ActivityDetail() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
                           {entry.model.split("/").pop()}
                         </span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500">
+                        <span className="text-xs text-slate-500 dark:text-slate-500">
                           {new Date(entry.created_at).toLocaleString(undefined, {
                               year: "numeric", month: "short", day: "numeric",
                               hour: "2-digit", minute: "2-digit"
                             })}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1 leading-relaxed">
+                      <p className="text-sm text-slate-700 dark:text-slate-400 line-clamp-1 leading-relaxed">
                         {entry.prompt}
                       </p>
                     </div>
@@ -441,11 +441,11 @@ export default function ActivityDetail() {
                         className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         title={entry.is_favorite ? "Unfavorite" : "Favorite"}
                       >
-                        <Star className={cn("w-3.5 h-3.5", entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
+                        <Star className={cn("w-3.5 h-3.5", entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-400 dark:text-slate-600")} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleHistoryDelete(entry.id); }}
-                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-300 dark:text-slate-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-600 transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
