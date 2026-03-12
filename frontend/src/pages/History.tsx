@@ -7,6 +7,15 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 
+function slugToLabel(slug: string | null): string {
+  if (!slug) return "Playground";
+  if (slug === "__compare__") return "Experiment Lab";
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function History() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -143,15 +152,20 @@ export default function History() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {entry.activity_slug && (
-                        <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
-                          {entry.activity_slug}
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                      <span className={cn(
+                        "text-xs font-medium px-2 py-0.5 rounded-full",
+                        entry.activity_slug === null
+                          ? "text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800"
+                          : entry.activity_slug === "__compare__"
+                          ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
+                          : "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30"
+                      )}>
+                        {slugToLabel(entry.activity_slug)}
+                      </span>
+                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
                         {entry.model.split("/").pop()}
                       </span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                      <span className="text-xs text-slate-500 dark:text-slate-500">
                         {new Date(entry.created_at).toLocaleString(undefined, {
                               year: "numeric", month: "short", day: "numeric",
                               hour: "2-digit", minute: "2-digit"
@@ -171,13 +185,13 @@ export default function History() {
                       <Star
                         className={cn(
                           "w-4 h-4",
-                          entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600"
+                          entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-400 dark:text-slate-600"
                         )}
                       />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-300 dark:text-slate-600 transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-600 transition-colors"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />
