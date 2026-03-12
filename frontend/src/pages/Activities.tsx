@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Search, X } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
 import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { getCompletedActivities } from "@/lib/progress";
 export default function Activities() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filter, setFilter] = useState<string>("All");
+  const [search, setSearch] = useState("");
   const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -17,8 +18,13 @@ export default function Activities() {
   }, []);
 
   const categories = ["All", ...new Set(activities.map((a) => a.category))];
-  const filtered =
-    filter === "All" ? activities : activities.filter((a) => a.category === filter);
+  const filtered = activities
+    .filter((a) => filter === "All" || a.category === filter)
+    .filter((a) =>
+      !search.trim() ||
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.description.toLowerCase().includes(search.toLowerCase())
+    );
 
   return (
     <div className="space-y-6">
@@ -52,8 +58,26 @@ export default function Activities() {
         )}
       </div>
 
-      {/* Category filter */}
-      <div className="flex flex-wrap gap-2">
+      {/* Search + Category filter row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search…"
+            className="pl-8 pr-7 py-1.5 w-40 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent focus:w-52 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
         {categories.map((cat) => (
           <button
             key={cat}
@@ -71,6 +95,13 @@ export default function Activities() {
       </div>
 
       {/* Activity cards */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 space-y-2">
+          <Search className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No activities found</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Try a different search term or category</p>
+        </div>
+      ) : (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.map((activity) => (
           <Link
@@ -105,6 +136,7 @@ export default function Activities() {
           </Link>
         ))}
       </div>
+      )}
     </div>
   );
 }

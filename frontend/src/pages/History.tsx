@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Star, Trash2, ChevronDown, ChevronUp, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Trash2, ChevronDown, ChevronUp, Clock, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import { listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
@@ -12,6 +12,7 @@ export default function History() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     loadHistory();
@@ -45,13 +46,25 @@ export default function History() {
     }
   }
 
-  const filtered = filterFavorites ? entries.filter((e) => e.is_favorite) : entries;
+  const filtered = entries
+    .filter((e) => !filterFavorites || e.is_favorite)
+    .filter((e) =>
+      !search.trim() ||
+      e.prompt.toLowerCase().includes(search.toLowerCase()) ||
+      (e.activity_slug ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      e.model.toLowerCase().includes(search.toLowerCase())
+    );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function handleFilterToggle() {
     setFilterFavorites((v) => !v);
+    setPage(1);
+  }
+
+  function handleSearch(val: string) {
+    setSearch(val);
     setPage(1);
   }
 
@@ -66,7 +79,25 @@ export default function History() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search…"
+            className="pl-8 pr-7 py-1.5 w-40 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent focus:w-52 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => handleSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
         <button
           onClick={handleFilterToggle}
           className={cn(
