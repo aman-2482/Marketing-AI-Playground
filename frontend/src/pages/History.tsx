@@ -47,6 +47,7 @@ export default function History() {
   }
 
   const filtered = entries
+    .filter((e) => e.activity_slug !== "__compare__")
     .filter((e) => !filterFavorites || e.is_favorite)
     .filter((e) =>
       !search.trim() ||

@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -87,21 +88,17 @@ def playground_compare(
         logger.exception("Playground compare failed")
         raise HTTPException(status_code=502, detail="AI generation failed. Please try again.")
 
-    db.add_all([
+    db.add(
         PromptHistory(
             session_id=req.session_id,
-            activity_slug=None,
-            prompt=prompt,
+            activity_slug="__compare__",
+            prompt=json.dumps({"prompt_a": req.prompt_a, "prompt_b": req.prompt_b}),
             system_prompt=req.system_prompt,
-            response=resp,
-            model=mdl,
+            response=json.dumps({"response_a": response_a, "response_b": response_b}),
+            model=f"{model_a}|||{model_b}",
             temperature=req.temperature,
         )
-        for prompt, resp, mdl in (
-            (req.prompt_a, response_a, model_a),
-            (req.prompt_b, response_b, model_b),
-        )
-    ])
+    )
     db.commit()
 
     return ABCompareResponse(

@@ -1,12 +1,48 @@
-import { useRef, useState } from "react";
-import { GitCompare } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { GitCompare, Clock, ChevronDown, ChevronUp, Star, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { comparePrompts } from "@/lib/api";
+import { comparePrompts, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
+
+interface PastComparison {
+  id: number;
+  promptA: string;
+  promptB: string;
+  outputA: string;
+  outputB: string;
+  modelA: string;
+  modelB: string;
+  timestamp: string;
+  isFavorite: boolean;
+}
+
+function parseCompareEntry(entry: HistoryEntry): PastComparison | null {
+  try {
+    const p = JSON.parse(entry.prompt) as { prompt_a: string; prompt_b: string };
+    const r = JSON.parse(entry.response) as { response_a: string; response_b: string };
+    const parts = entry.model.split("|||");
+    return {
+      id: entry.id,
+      promptA: p.prompt_a ?? "",
+      promptB: p.prompt_b ?? "",
+      outputA: r.response_a ?? "",
+      outputB: r.response_b ?? "",
+      modelA: parts[0] ?? "",
+      modelB: parts[1] ?? "",
+      timestamp: new Date(entry.created_at).toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      }),
+      isFavorite: entry.is_favorite,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const EXPERIMENTS = [
   {
@@ -55,6 +91,44 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const outputRef = useRef<HTMLDivElement>(null);
+  const [pastComparisons, setPastComparisons] = useState<PastComparison[]>([]);
+  const [expandedPastId, setExpandedPastId] = useState<number | null>(null);
+
+  useEffect(() => { void loadCompareHistory(); }, []);
+
+  async function loadCompareHistory() {
+    try {
+      const all = await listHistory(getSessionId(), 100);
+      const parsed = all
+        .filter((e) => e.activity_slug === "__compare__")
+        .map(parseCompareEntry)
+        .filter((e): e is PastComparison => e !== null);
+      setPastComparisons(parsed);
+    } catch {
+      // non-critical
+    }
+  }
+
+  async function handleFavorite(past: PastComparison) {
+    try {
+      const updated = await toggleFavorite(past.id, !past.isFavorite);
+      setPastComparisons((prev) =>
+        prev.map((e) => (e.id === updated.id ? { ...e, isFavorite: updated.is_favorite } : e))
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+    try {
+      await deleteHistory(id);
+      setPastComparisons((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      // ignore
+    }
+  }
 
   async function handleCompare() {
     if (!promptA.trim() || !promptB.trim()) return;
@@ -76,6 +150,7 @@ export default function Compare() {
       setOutputB(result.response_b);
       setUsedModelA(result.model_a);
       setUsedModelB(result.model_b);
+      void loadCompareHistory();
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Comparison failed");
@@ -246,6 +321,82 @@ export default function Compare() {
               )}
             </div>
             <MarkdownOutput content={outputB} />
+          </div>
+        </div>
+      )}
+
+      {/* Past Comparisons */}
+      {pastComparisons.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Past Comparisons</h2>
+            <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+              {pastComparisons.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {pastComparisons.map((past) => {
+              const isExpanded = expandedPastId === past.id;
+              return (
+                <div key={past.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                  <div
+                    className="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
+                    onClick={() => setExpandedPastId(isExpanded ? null : past.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        {past.modelA && (
+                          <span className="text-xs text-violet-500 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                            A: {past.modelA.split("/").pop()}
+                          </span>
+                        )}
+                        {past.modelB && (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                            B: {past.modelB.split("/").pop()}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400 dark:text-slate-500">{past.timestamp}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
+                        <span className="font-medium text-violet-600 dark:text-violet-400">A:</span> {past.promptA}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void handleFavorite(past); }}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        title={past.isFavorite ? "Unfavorite" : "Favorite"}
+                      >
+                        <Star className={cn("w-3.5 h-3.5", past.isFavorite ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void handleDelete(past.id); }}
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-300 dark:text-slate-600 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      {isExpanded
+                        ? <ChevronUp className="w-4 h-4 text-slate-400 ml-1" />
+                        : <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 dark:border-slate-800 grid md:grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800">
+                      <div className="px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
+                        <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2">Output A</p>
+                        <MarkdownOutput content={past.outputA} />
+                      </div>
+                      <div className="px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
+                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">Output B</p>
+                        <MarkdownOutput content={past.outputB} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
