@@ -6,7 +6,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from app.config import settings
-from app.models import Activity, PromptHistory
+from app.models import Activity, PromptHistory, User
 
 
 class AdminAuthBackend(AuthenticationBackend):
@@ -70,6 +70,15 @@ class PromptHistoryAdmin(ModelView, model=PromptHistory):
     icon = "fa-solid fa-clock-rotate-left"
 
 
+class UserAdmin(ModelView, model=User):
+    column_list = [User.id, User.username, User.email, User.created_at]
+    column_searchable_list = [User.username, User.email]
+    column_sortable_list = [User.id, User.username, User.email, User.created_at]
+    form_excluded_columns = [User.created_at]
+    name = "Users"
+    icon = "fa-solid fa-users"
+
+
 def setup_admin(app, engine) -> Admin:
     """Mount the SQLAdmin panel at /admin/ on the given FastAPI app."""
     auth_backend = AdminAuthBackend(
@@ -85,4 +94,5 @@ def setup_admin(app, engine) -> Admin:
     )
     admin.add_view(ActivityAdmin)
     admin.add_view(PromptHistoryAdmin)
+    admin.add_view(UserAdmin)
     return admin

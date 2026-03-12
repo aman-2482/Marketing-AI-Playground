@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "@/components/Layout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
 import Home from "@/pages/Home";
 import Playground from "@/pages/Playground";
 import Activities from "@/pages/Activities";
@@ -12,17 +15,21 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public landing page — no sidebar */}
+        {/* Public pages */}
         <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
-        {/* App shell with sidebar */}
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Home />} />
-          <Route path="/playground" element={<Playground />} />
-          <Route path="/activities" element={<Activities />} />
-          <Route path="/activities/:slug" element={<ActivityDetail />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/history" element={<History />} />
+        {/* Protected app shell */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Home />} />
+            <Route path="/playground" element={<Playground />} />
+            <Route path="/activities" element={<Activities />} />
+            <Route path="/activities/:slug" element={<ActivityDetail />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/history" element={<History />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

@@ -141,3 +141,34 @@ export function toggleFavorite(id: number, isFavorite: boolean) {
 export function deleteHistory(id: number) {
   return request<{ detail: string }>(`/history/${id}`, { method: "DELETE" });
 }
+
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export interface AuthResponse {
+  token: string;
+  username: string;
+  email: string;
+  user_id: number;
+}
+
+export function registerUser(data: {
+  username: string;
+  email: string;
+  password: string;
+  confirm_password: string;
+}) {
+  return request<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function loginUser(data: { username: string; password: string }) {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

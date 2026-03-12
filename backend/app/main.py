@@ -11,9 +11,10 @@ from app.admin import setup_admin
 from app.ai_service import AVAILABLE_MODELS, DEFAULT_MODEL
 from app.config import settings
 from app.database import Base, SessionLocal, engine
-from app.models import Activity, PromptHistory  # noqa: F401 — registers tables with Base
+from app.models import Activity, PromptHistory, User, UserToken  # noqa: F401 — registers tables with Base
 from app.rate_limit import limiter
 from app.routers import activities, history, playground
+from app.routers import auth as auth_router
 from app.seed.activities import ACTIVITIES
 
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +80,7 @@ app.add_middleware(
 )
 
 # Routers
+app.include_router(auth_router.router)
 app.include_router(playground.router)
 app.include_router(activities.router)
 app.include_router(history.router)

@@ -36,12 +36,12 @@ function Navbar() {
         <nav className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-sm text-slate-300 hover:text-white transition-colors">Features</a>
           <a href="#purpose" className="text-sm text-slate-300 hover:text-white transition-colors">Why GenAI</a>
-          <Link to="/dashboard" className="text-sm text-slate-300 hover:text-white transition-colors">Dashboard</Link>
+          <Link to="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Dashboard</Link>
         </nav>
 
         {/* CTA */}
         <Link
-          to="/dashboard"
+          to="/login"
           className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-violet-900/40"
         >
           Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
@@ -101,7 +101,7 @@ function Hero() {
             Explore Features
           </a>
           <Link
-            to="/dashboard"
+            to="/login"
             className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-lg shadow-violet-900/40 transition-all"
           >
             Go to Dashboard <ArrowRight className="w-4 h-4" />
@@ -307,7 +307,7 @@ function Purpose() {
               build those skills safely — with structured guidance and real workflows.
             </p>
             <Link
-              to="/dashboard"
+              to="/login"
               className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-violet-900/40"
             >
               Start Practising Free <ArrowRight className="w-4 h-4" />
@@ -358,7 +358,7 @@ function CTABanner() {
             Browse Activities
           </Link>
           <Link
-            to="/dashboard"
+            to="/login"
             className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-lg shadow-violet-900/40 transition-all"
           >
             Open Dashboard <ArrowRight className="w-4 h-4" />

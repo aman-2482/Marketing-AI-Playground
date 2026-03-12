@@ -134,3 +134,26 @@ class HistoryOut(BaseModel):
 
 class FavoriteToggle(BaseModel):
     is_favorite: bool
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
+    email: str = Field(min_length=5, max_length=200)
+    password: str = Field(min_length=6, max_length=100)
+    confirm_password: str = Field(min_length=6, max_length=100)
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=50)
+    password: str = Field(min_length=1, max_length=100)
+
+
+class AuthResponse(BaseModel):
+    token: str
+    username: str
+    email: str
+    user_id: int
