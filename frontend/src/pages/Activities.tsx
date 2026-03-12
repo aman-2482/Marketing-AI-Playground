@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, Search, X } from "lucide-react";
 import { listActivities, type Activity } from "@/lib/api";
-import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { ICON_MAP, DEFAULT_ICON, cn } from "@/lib/utils";
 import { getCompletedActivities } from "@/lib/progress";
 
 export default function Activities() {

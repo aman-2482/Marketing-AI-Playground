@@ -8,8 +8,7 @@ import ModelSelector from "@/components/ModelSelector";
 import { getActivity, generateActivity, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { markActivityCompleted } from "@/lib/progress";
-import { ICON_MAP, DEFAULT_ICON } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { ICON_MAP, DEFAULT_ICON, cn } from "@/lib/utils";
 
 type Tab = "activity" | "instructions";
 
