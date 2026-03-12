@@ -12,27 +12,41 @@ interface PastComparison {
   id: number;
   promptA: string;
   promptB: string;
+  promptC: string;
   outputA: string;
   outputB: string;
+  outputC: string;
   modelA: string;
   modelB: string;
+  modelC: string;
   timestamp: string;
   isFavorite: boolean;
 }
 
 function parseCompareEntry(entry: HistoryEntry): PastComparison | null {
   try {
-    const p = JSON.parse(entry.prompt) as { prompt_a: string; prompt_b: string };
-    const r = JSON.parse(entry.response) as { response_a: string; response_b: string };
+    const p = JSON.parse(entry.prompt) as {
+      prompt_a: string;
+      prompt_b: string;
+      prompt_c?: string;
+    };
+    const r = JSON.parse(entry.response) as {
+      response_a: string;
+      response_b: string;
+      response_c?: string;
+    };
     const parts = entry.model.split("|||");
     return {
       id: entry.id,
       promptA: p.prompt_a ?? "",
       promptB: p.prompt_b ?? "",
+      promptC: p.prompt_c ?? "",
       outputA: r.response_a ?? "",
       outputB: r.response_b ?? "",
+      outputC: r.response_c ?? "",
       modelA: parts[0] ?? "",
       modelB: parts[1] ?? "",
+      modelC: parts[2] ?? "",
       timestamp: new Date(entry.created_at).toLocaleString(undefined, {
         year: "numeric", month: "short", day: "numeric",
         hour: "2-digit", minute: "2-digit",
@@ -47,47 +61,77 @@ function parseCompareEntry(entry: HistoryEntry): PastComparison | null {
 const EXPERIMENTS = [
   {
     title: "Specificity",
-    description: "Vague vs. detailed prompt",
+    description: "Vague vs. detailed vs. constrained prompt",
     prompt_a: "Write a product description for headphones.",
     prompt_b:
       "You are a premium audio brand copywriter. Write a 150-word product description for wireless noise-canceling headphones targeting remote professionals. Highlight: comfort for all-day wear, 40-hour battery, and crystal-clear call quality. Use a confident but warm tone.",
+    prompt_c:
+      "You are a conversion copywriter for a premium audio brand. Write exactly 3 short paragraphs for wireless noise-canceling headphones aimed at remote professionals. Mention only: all-day comfort, 40-hour battery, and call clarity. Keep total length under 120 words. End with a one-line CTA.",
   },
   {
     title: "Role",
-    description: "No role vs. expert persona",
+    description: "No role vs. persona vs. channel strategist",
     prompt_a: "Write an Instagram caption for a new coffee blend.",
     prompt_b:
       "You are a social media manager for a trendy specialty coffee brand with a playful, adventurous personality. Write an Instagram caption for a new single-origin Ethiopian coffee blend. Include emojis and relevant hashtags.",
+    prompt_c:
+      "You are a growth-focused social strategist. Create an Instagram launch caption for a new single-origin Ethiopian coffee blend with this format: 1 hook line, 2 sensory benefit lines, 1 social proof line, and 1 CTA line. Add 5 targeted hashtags.",
   },
   {
     title: "Format",
-    description: "Open-ended vs. structured output",
+    description: "Open-ended vs. structured vs. strict template",
     prompt_a: "Create a marketing email for a fitness app.",
     prompt_b:
       "Create a marketing email for a fitness app. Structure it as: 1) Subject line (under 50 chars) 2) Preview text (under 100 chars) 3) Opening hook 4) Three key benefits with icons 5) Social proof quote 6) CTA button text 7) P.S. line",
+    prompt_c:
+      "Create a marketing email for a fitness app using this exact template: Subject (max 45 chars), Preview (max 90 chars), Intro (2 sentences), Benefit bullets (3 bullets, each under 12 words), Testimonial (1 sentence), CTA (3 words), P.S. (1 sentence). Tone: motivating, not pushy.",
   },
   {
     title: "Audience",
-    description: "Generic vs. targeted audience",
+    description: "Generic vs. targeted vs. segmented audience",
     prompt_a: "Write ad copy for an online learning platform.",
     prompt_b:
       "Write Google Ads copy for an online learning platform targeting mid-career professionals (35-45) who feel stuck and want to upskill in AI/data science. Address their fear of being left behind and desire for career growth.",
+    prompt_c:
+      "Write 3 Google ad variants for an online learning platform targeting mid-career professionals (35-45). Variant 1 should address job-security anxiety, Variant 2 should address salary growth, and Variant 3 should address confidence rebuilding. Include headline and description for each.",
   },
 ];
+
+const LANE_STYLES = {
+  A: {
+    chip: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
+    badge: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30",
+    label: "text-violet-600 dark:text-violet-400",
+  },
+  B: {
+    chip: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
+    badge: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30",
+    label: "text-emerald-600 dark:text-emerald-400",
+  },
+  C: {
+    chip: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
+    badge: "text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30",
+    label: "text-amber-600 dark:text-amber-300",
+  },
+} as const;
 
 export default function Compare() {
   const [promptA, setPromptA] = useState("");
   const [promptB, setPromptB] = useState("");
+  const [promptC, setPromptC] = useState("");
   const [systemPrompt, setSystemPrompt] = useState(
     "You are a helpful marketing assistant."
   );
   const [temperature, setTemperature] = useState(0.7);
   const [modelA, setModelA] = useState("");
   const [modelB, setModelB] = useState("");
+  const [modelC, setModelC] = useState("");
   const [outputA, setOutputA] = useState("");
   const [outputB, setOutputB] = useState("");
+  const [outputC, setOutputC] = useState("");
   const [usedModelA, setUsedModelA] = useState("");
   const [usedModelB, setUsedModelB] = useState("");
+  const [usedModelC, setUsedModelC] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const outputRef = useRef<HTMLDivElement>(null);
@@ -131,25 +175,30 @@ export default function Compare() {
   }
 
   async function handleCompare() {
-    if (!promptA.trim() || !promptB.trim()) return;
+    if (!promptA.trim() || !promptB.trim() || !promptC.trim()) return;
     setLoading(true);
     setError("");
     setOutputA("");
     setOutputB("");
+    setOutputC("");
     try {
       const result = await comparePrompts({
         prompt_a: promptA,
         prompt_b: promptB,
+        prompt_c: promptC,
         system_prompt: systemPrompt,
         temperature,
         session_id: getSessionId(),
         model_a: modelA,
         model_b: modelB,
+        model_c: modelC,
       });
       setOutputA(result.response_a);
       setOutputB(result.response_b);
+      setOutputC(result.response_c ?? "");
       setUsedModelA(result.model_a);
       setUsedModelB(result.model_b);
+      setUsedModelC(result.model_c ?? "");
       void loadCompareHistory();
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (err) {
@@ -162,24 +211,25 @@ export default function Compare() {
   function loadExperiment(exp: (typeof EXPERIMENTS)[number]) {
     setPromptA(exp.prompt_a);
     setPromptB(exp.prompt_b);
+    setPromptC(exp.prompt_c);
     setOutputA("");
     setOutputB("");
+    setOutputC("");
   }
 
-  const canCompare = !loading && promptA.trim().length > 0 && promptB.trim().length > 0;
+  const canCompare = !loading && promptA.trim().length > 0 && promptB.trim().length > 0 && promptC.trim().length > 0;
+
+  const hasOutput = Boolean(outputA || outputB || outputC);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Experiment Lab</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Compare two prompts or two models side-by-side. The fastest way to develop
-          prompt engineering intuition.
+          Compare three prompts A, B, and C side-by-side, then slide horizontally between lanes to spot what changes quality.
         </p>
       </div>
 
-      {/* Pre-built experiments */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Try a Pre-built Experiment</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -201,46 +251,55 @@ export default function Compare() {
         </div>
       </div>
 
-      {/* Side-by-side input */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Prompt A */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
+          <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-              <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 flex items-center justify-center text-xs font-bold">A</span>
+              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold", LANE_STYLES.A.chip)}>A</span>
               Prompt A
             </span>
+            <Textarea
+              value={promptA}
+              onChange={(e) => setPromptA(e.target.value)}
+              rows={8}
+              className="resize-none"
+              placeholder="Write your first prompt version"
+            />
+            <ModelSelector label="Model A" value={modelA} onChange={setModelA} />
           </div>
-          <Textarea
-            value={promptA}
-            onChange={(e) => setPromptA(e.target.value)}
-            rows={6}
-            className="resize-none"
-            placeholder="Write your first prompt version…"
-          />
-          <ModelSelector label="Model A" value={modelA} onChange={setModelA} />
-        </div>
 
-        {/* Prompt B */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-              <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xs font-bold">B</span>
+              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold", LANE_STYLES.B.chip)}>B</span>
               Prompt B
             </span>
+            <Textarea
+              value={promptB}
+              onChange={(e) => setPromptB(e.target.value)}
+              rows={8}
+              className="resize-none"
+              placeholder="Write your second prompt version"
+            />
+            <ModelSelector label="Model B" value={modelB} onChange={setModelB} />
           </div>
-          <Textarea
-            value={promptB}
-            onChange={(e) => setPromptB(e.target.value)}
-            rows={6}
-            className="resize-none"
-            placeholder="Write your second version (change one thing)…"
-          />
-          <ModelSelector label="Model B" value={modelB} onChange={setModelB} />
+
+          <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold", LANE_STYLES.C.chip)}>C</span>
+              Prompt C
+            </span>
+            <Textarea
+              value={promptC}
+              onChange={(e) => setPromptC(e.target.value)}
+              rows={8}
+              className="resize-none"
+              placeholder="Write your third prompt version"
+            />
+            <ModelSelector label="Model C" value={modelC} onChange={setModelC} />
+          </div>
         </div>
       </div>
 
-      {/* Controls bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
           <div className="flex-1 w-full">
@@ -280,7 +339,7 @@ export default function Compare() {
             )}
           >
             <GitCompare className="w-4 h-4" />
-            {loading ? "Comparing…" : "Compare"}
+            {loading ? "Comparing..." : "Compare A/B/C"}
           </button>
         </div>
       </div>
@@ -291,41 +350,60 @@ export default function Compare() {
         </div>
       )}
 
-      {/* Side-by-side output */}
-      {(outputA || outputB) && (
-        <div ref={outputRef} className="grid md:grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                A
-              </span>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Output A</p>
-              {usedModelA && (
-                <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
-                  {usedModelA.split("/").pop()}
-                </span>
-              )}
-            </div>
-            <MarkdownOutput content={outputA} />
+      {hasOutput && (
+        <div ref={outputRef} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Outputs</p>
           </div>
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                B
-              </span>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Output B</p>
-              {usedModelB && (
-                <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
-                  {usedModelB.split("/").pop()}
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
+            <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0", LANE_STYLES.A.chip)}>
+                  A
                 </span>
-              )}
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Output A</p>
+                {usedModelA && (
+                  <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
+                    {usedModelA.split("/").pop()}
+                  </span>
+                )}
+              </div>
+              <MarkdownOutput content={outputA} />
             </div>
-            <MarkdownOutput content={outputB} />
+
+            <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0", LANE_STYLES.B.chip)}>
+                  B
+                </span>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Output B</p>
+                {usedModelB && (
+                  <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
+                    {usedModelB.split("/").pop()}
+                  </span>
+                )}
+              </div>
+              <MarkdownOutput content={outputB} />
+            </div>
+
+            <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0", LANE_STYLES.C.chip)}>
+                  C
+                </span>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Output C</p>
+                {usedModelC && (
+                  <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
+                    {usedModelC.split("/").pop()}
+                  </span>
+                )}
+              </div>
+              <MarkdownOutput content={outputC} />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Past Comparisons */}
       {pastComparisons.length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2">
@@ -338,6 +416,7 @@ export default function Compare() {
           <div className="space-y-2">
             {pastComparisons.map((past) => {
               const isExpanded = expandedPastId === past.id;
+              const hasC = Boolean(past.promptC || past.outputC || past.modelC);
               return (
                 <div key={past.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
                   <div
@@ -347,19 +426,24 @@ export default function Compare() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         {past.modelA && (
-                          <span className="text-xs text-violet-500 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full", LANE_STYLES.A.badge)}>
                             A: {past.modelA.split("/").pop()}
                           </span>
                         )}
                         {past.modelB && (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full", LANE_STYLES.B.badge)}>
                             B: {past.modelB.split("/").pop()}
+                          </span>
+                        )}
+                        {past.modelC && (
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full", LANE_STYLES.C.badge)}>
+                            C: {past.modelC.split("/").pop()}
                           </span>
                         )}
                         <span className="text-xs text-slate-400 dark:text-slate-500">{past.timestamp}</span>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
-                        <span className="font-medium text-violet-600 dark:text-violet-400">A:</span> {past.promptA}
+                        <span className={cn("font-medium", LANE_STYLES.A.label)}>A:</span> {past.promptA}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -383,14 +467,22 @@ export default function Compare() {
                     </div>
                   </div>
                   {isExpanded && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 grid md:grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800">
-                      <div className="px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
-                        <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2">Output A</p>
-                        <MarkdownOutput content={past.outputA} />
-                      </div>
-                      <div className="px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
-                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">Output B</p>
-                        <MarkdownOutput content={past.outputB} />
+                    <div className="border-t border-slate-100 dark:border-slate-800 p-4">
+                      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
+                        <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                          <p className={cn("text-xs font-semibold mb-2", LANE_STYLES.A.label)}>Output A</p>
+                          <MarkdownOutput content={past.outputA} />
+                        </div>
+                        <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                          <p className={cn("text-xs font-semibold mb-2", LANE_STYLES.B.label)}>Output B</p>
+                          <MarkdownOutput content={past.outputB} />
+                        </div>
+                        {hasC && (
+                          <div className="min-w-[85%] sm:min-w-[60%] lg:min-w-[32%] snap-start px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className={cn("text-xs font-semibold mb-2", LANE_STYLES.C.label)}>Output C</p>
+                            <MarkdownOutput content={past.outputC} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

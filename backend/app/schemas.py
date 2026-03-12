@@ -88,6 +88,7 @@ class ActivityGenerateResponse(BaseModel):
 class ABCompareRequest(BaseModel):
     prompt_a: str = Field(min_length=1, max_length=10_000)
     prompt_b: str = Field(min_length=1, max_length=10_000)
+    prompt_c: Optional[str] = Field(default=None, min_length=1, max_length=10_000)
     system_prompt: str = Field(
         default="You are a helpful marketing assistant.",
         max_length=5_000,
@@ -96,15 +97,19 @@ class ABCompareRequest(BaseModel):
     session_id: SessionId = Field(default="default", max_length=100)
     model_a: Optional[str] = Field(default=None, max_length=100)
     model_b: Optional[str] = Field(default=None, max_length=100)
+    model_c: Optional[str] = Field(default=None, max_length=100)
 
 
 class ABCompareResponse(BaseModel):
     response_a: str
     response_b: str
+    response_c: Optional[str] = None
     prompt_a: str
     prompt_b: str
+    prompt_c: Optional[str] = None
     model_a: str
     model_b: str
+    model_c: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

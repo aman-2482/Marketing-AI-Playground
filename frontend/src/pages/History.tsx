@@ -16,16 +16,32 @@ function slugToLabel(slug: string | null): string {
     .join(" ");
 }
 
-function parseCompareData(entry: HistoryEntry): { promptA: string; promptB: string; modelA: string; modelB: string } | null {
+function parseCompareData(entry: HistoryEntry): {
+  promptA: string;
+  promptB: string;
+  promptC: string;
+  modelA: string;
+  modelB: string;
+  modelC: string;
+  responseA: string;
+  responseB: string;
+  responseC: string;
+} | null {
   if (entry.activity_slug !== "__compare__") return null;
   try {
-    const p = JSON.parse(entry.prompt) as { prompt_a: string; prompt_b: string };
+    const p = JSON.parse(entry.prompt) as { prompt_a: string; prompt_b: string; prompt_c?: string };
+    const r = JSON.parse(entry.response) as { response_a: string; response_b: string; response_c?: string };
     const parts = entry.model.split("|||");
     return {
       promptA: p.prompt_a ?? "",
       promptB: p.prompt_b ?? "",
+      promptC: p.prompt_c ?? "",
       modelA: parts[0] ?? "",
-      modelB: parts[1] ?? ""
+      modelB: parts[1] ?? "",
+      modelC: parts[2] ?? "",
+      responseA: r.response_a ?? "No response",
+      responseB: r.response_b ?? "No response",
+      responseC: r.response_c ?? "",
     };
   } catch {
     return null;
@@ -156,6 +172,7 @@ export default function History() {
           {paginated.map((entry) => {
             const isExpanded = expandedId === entry.id;
             const compareData = parseCompareData(entry);
+            const hasCompareC = Boolean(compareData?.promptC || compareData?.modelC || compareData?.responseC);
             return (
               <div
                 key={entry.id}
@@ -187,6 +204,14 @@ export default function History() {
                           <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
                             {compareData.modelB.split("/").pop()}
                           </span>
+                          {hasCompareC && (
+                            <>
+                              <span className="text-xs text-slate-400">vs</span>
+                              <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
+                                {compareData.modelC.split("/").pop()}
+                              </span>
+                            </>
+                          )}
                         </>
                       ) : (
                         <span className="text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
@@ -208,6 +233,11 @@ export default function History() {
                         <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 leading-relaxed">
                           <span className="font-medium text-slate-500 dark:text-slate-400">B:</span> {compareData.promptB}
                         </p>
+                        {hasCompareC && (
+                          <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 leading-relaxed">
+                            <span className="font-medium text-slate-500 dark:text-slate-400">C:</span> {compareData.promptC}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
@@ -246,7 +276,7 @@ export default function History() {
                 {isExpanded && (
                   <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-4 bg-slate-50/50 dark:bg-slate-800/30">
                     {compareData ? (
-                      <div className="grid lg:grid-cols-2 gap-6">
+                      <div className={cn("grid gap-6", hasCompareC ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -255,13 +285,7 @@ export default function History() {
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{compareData.modelA.split("/").pop()}</span>
                           </div>
                           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                            <MarkdownOutput content={(() => {
-                              try {
-                                return JSON.parse(entry.response).response_a || "No response";
-                              } catch {
-                                return "Error loading response";
-                              }
-                            })()} />
+                            <MarkdownOutput content={compareData.responseA} />
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -272,15 +296,22 @@ export default function History() {
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{compareData.modelB.split("/").pop()}</span>
                           </div>
                           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                            <MarkdownOutput content={(() => {
-                              try {
-                                return JSON.parse(entry.response).response_b || "No response";
-                              } catch {
-                                return "Error loading response";
-                              }
-                            })()} />
+                            <MarkdownOutput content={compareData.responseB} />
                           </div>
                         </div>
+                        {hasCompareC && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">C</span>
+                              </div>
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{compareData.modelC.split("/").pop()}</span>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                              <MarkdownOutput content={compareData.responseC || "No response"} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <MarkdownOutput content={entry.response} />

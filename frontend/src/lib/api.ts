@@ -33,19 +33,24 @@ export function generatePlayground(data: {
 export function comparePrompts(data: {
   prompt_a: string;
   prompt_b: string;
+  prompt_c?: string;
   system_prompt?: string;
   temperature?: number;
   session_id?: string;
   model_a?: string;
   model_b?: string;
+  model_c?: string;
 }) {
   return request<{
     response_a: string;
     response_b: string;
+    response_c?: string | null;
     prompt_a: string;
     prompt_b: string;
+    prompt_c?: string | null;
     model_a: string;
     model_b: string;
+    model_c?: string | null;
   }>("/playground/compare", { method: "POST", body: JSON.stringify(data) });
 }
 
