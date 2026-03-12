@@ -382,7 +382,7 @@ function Footer() {
           </div>
           <span className="text-sm font-semibold text-slate-400">Marketing AI Playground</span>
         </div>
-        <p className="text-xs text-slate-600">Powered by OpenRouter · Built with React + FastAPI</p>
+        <p className="text-xs text-slate-600">© 2026 Marketing AI Playground. All rights reserved.</p>
       </div>
     </footer>
   );
