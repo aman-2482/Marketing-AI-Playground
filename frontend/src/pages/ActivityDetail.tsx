@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronRight, Zap, Search, Loader2, Check, Copy, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronRight, Zap, Search, Loader2, Check, Copy, Clock, Star, Trash2, ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
@@ -30,6 +30,7 @@ export default function ActivityDetail() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
+  const [mobileOutputExpanded, setMobileOutputExpanded] = useState(false);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   function clearFieldValidation(name: string) {
@@ -426,19 +427,32 @@ export default function ActivityDetail() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col h-full">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">AI Output</p>
-              {output && (
-                <button
-                  onClick={handleCopy}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 text-xs font-medium transition-all px-2.5 py-1 rounded-lg border",
-                    copied
-                      ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  )}
-                >
-                  {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {output && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileOutputExpanded(true)}
+                    className="lg:hidden inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    aria-label="Expand output"
+                  >
+                    <Maximize2 className="w-3 h-3" />
+                    Expand
+                  </button>
+                )}
+                {output && (
+                  <button
+                    onClick={handleCopy}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 text-xs font-medium transition-all px-2.5 py-1 rounded-lg border",
+                      copied
+                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                        : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
               {error && (
@@ -458,6 +472,56 @@ export default function ActivityDetail() {
               )}
             </div>
           </div>
+
+          {/* Mobile fullscreen output viewer */}
+          {mobileOutputExpanded && (
+            <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 lg:hidden flex flex-col">
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">AI Output</p>
+                <div className="flex items-center gap-2">
+                  {output && (
+                    <button
+                      onClick={handleCopy}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium transition-all px-2.5 py-1 rounded-lg border",
+                        copied
+                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                          : "text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                      )}
+                    >
+                      {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setMobileOutputExpanded(false)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    aria-label="Collapse output"
+                  >
+                    <Minimize2 className="w-3 h-3" />
+                    Back
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {error && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl px-4 py-3 mb-4">
+                    {error}
+                  </div>
+                )}
+                {output ? (
+                  <MarkdownOutput content={output} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 space-y-2">
+                    <Zap className="w-8 h-8 text-slate-200 dark:text-slate-700" />
+                    <p className="text-sm text-slate-400 dark:text-slate-500 text-center">
+                      Fill in the form and click Generate<br />to see AI output here.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

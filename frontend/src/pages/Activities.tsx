@@ -29,7 +29,7 @@ export default function Activities() {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Guided Activities</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
@@ -37,7 +37,7 @@ export default function Activities() {
             </p>
           </div>
           {activities.length > 0 && (
-            <div className="text-right shrink-0 ml-4">
+            <div className="text-left sm:text-right shrink-0 sm:ml-4">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {completedSlugs.size}/{activities.length} completed
               </p>
@@ -58,15 +58,15 @@ export default function Activities() {
       </div>
 
       {/* Search + Category filter row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
+      <div className="space-y-2">
+        <div className="relative w-full sm:w-auto sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="pl-8 pr-7 py-1.5 w-40 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent focus:w-52 transition-all"
+            className="pl-8 pr-7 py-1.5 w-full sm:w-52 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
           />
           {search && (
             <button
@@ -77,20 +77,22 @@ export default function Activities() {
             </button>
           )}
         </div>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-              filter === cat
-                ? "bg-violet-600 text-white shadow-sm"
-                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-            )}
-          >
-            {cat}
-          </button>
-        ))}
+        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilter(cat)}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap shrink-0",
+                filter === cat
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Activity cards */}
