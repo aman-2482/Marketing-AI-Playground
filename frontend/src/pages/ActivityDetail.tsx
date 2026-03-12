@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronRight, Zap, Search, Loader2, Check, Copy, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,27 @@ export default function ActivityDetail() {
   const [lastFormData, setLastFormData] = useState<Record<string, string>>({});
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
+  const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  function clearFieldValidation(name: string) {
+    setInvalidFields((prev) => {
+      if (!prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  }
+
+  function focusFirstInvalidField(fieldNames: string[]) {
+    if (fieldNames.length === 0) return;
+    const firstField = fieldNames[0];
+    const container = fieldRefs.current[firstField];
+    if (!container) return;
+    container.scrollIntoView({ behavior: "smooth", block: "center" });
+    const control = container.querySelector("textarea, input, select, button") as HTMLElement | null;
+    control?.focus();
+  }
 
   async function loadActivityHistory() {
     try {
@@ -119,8 +140,15 @@ export default function ActivityDetail() {
   async function handleGenerate() {
     if (!slug) return;
     const prompt = buildPrompt();
-    if (!prompt.trim()) return;
+    if (!prompt.trim()) {
+      const allFieldNames = fields.map((f) => f.name);
+      setInvalidFields(new Set(allFieldNames));
+      setError("");
+      focusFirstInvalidField(allFieldNames);
+      return;
+    }
     setLoading(true);
+    setInvalidFields(new Set());
     setError("");
     setOutput("");
     try {
@@ -233,7 +261,13 @@ export default function ActivityDetail() {
             </div>
 
             {fields.map((field) => (
-              <div key={field.name} className="space-y-1.5">
+              <div
+                key={field.name}
+                className="space-y-1.5"
+                ref={(el) => {
+                  fieldRefs.current[field.name] = el;
+                }}
+              >
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
                   {field.label}
                 </label>
@@ -266,20 +300,28 @@ export default function ActivityDetail() {
                 {field.type === "textarea" ? (
                   <Textarea
                     value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      clearFieldValidation(field.name);
+                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }));
+                    }}
                     placeholder={field.placeholder}
                     rows={4}
-                    className="resize-none"
+                    className={cn(
+                      "resize-none",
+                      invalidFields.has(field.name) && "border-red-400 dark:border-red-500 ring-2 ring-red-200 dark:ring-red-900/40"
+                    )}
                   />
                 ) : field.type === "select" ? (
                   <select
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className={cn(
+                      "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent",
+                      invalidFields.has(field.name) && "border-red-400 dark:border-red-500 ring-2 ring-red-200 dark:ring-red-900/40"
+                    )}
                     value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      clearFieldValidation(field.name);
+                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }));
+                    }}
                   >
                     <option value="">Select…</option>
                     {field.options?.map((opt) => (
@@ -289,7 +331,12 @@ export default function ActivityDetail() {
                     ))}
                   </select>
                 ) : field.type === "multiselect" ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    className={cn(
+                      "flex flex-wrap gap-2 rounded-lg p-2",
+                      invalidFields.has(field.name) && "border border-red-400 dark:border-red-500 ring-2 ring-red-200 dark:ring-red-900/40"
+                    )}
+                  >
                     {field.options?.map((opt) => {
                       const selected = (formData[field.name] || "").split(", ").includes(opt);
                       return (
@@ -297,6 +344,7 @@ export default function ActivityDetail() {
                           key={opt}
                           type="button"
                           onClick={() => {
+                            clearFieldValidation(field.name);
                             const current = (formData[field.name] || "")
                               .split(", ")
                               .filter(Boolean);
@@ -320,11 +368,15 @@ export default function ActivityDetail() {
                 ) : (
                   <input
                     type="text"
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className={cn(
+                      "w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent",
+                      invalidFields.has(field.name) && "border-red-400 dark:border-red-500 ring-2 ring-red-200 dark:ring-red-900/40"
+                    )}
                     value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      clearFieldValidation(field.name);
+                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }));
+                    }}
                     placeholder={field.placeholder}
                   />
                 )}
