@@ -5,7 +5,7 @@ GenAI Marketing Lab is a hands-on playground where marketing professionals can p
 
 ## Tech Stack
 - **Backend**: FastAPI (Python 3.11) + SQLAlchemy + SQLAdmin
-- **Frontend**: React 18 + TypeScript + Vite + shadcn/ui + Tailwind CSS
+- **Frontend**: React 19 + TypeScript + Vite + shadcn/ui + Tailwind CSS
 - **AI**: OpenRouter API (multi-model support — Claude, GPT-4, Gemini, Mistral, and more)
 - **Database**: SQLite (dev) / PostgreSQL (prod-ready)
 - **Containerization**: Docker + Docker Compose
@@ -18,15 +18,18 @@ GenAI Marketing Lab is a hands-on playground where marketing professionals can p
 │   │   ├── database.py      # SQLAlchemy setup
 │   │   ├── models.py        # Database models
 │   │   ├── schemas.py       # Pydantic schemas
-│   │   ├── ai_service.py    # Claude API integration
+│   │   ├── ai_service.py    # OpenRouter multi-model integration
 │   │   ├── admin.py         # SQLAdmin configuration
 │   │   ├── routers/
 │   │   │   ├── playground.py    # Free playground endpoints
-│   │   │   └── activities.py    # Guided activities endpoints
+│   │   │   ├── activities.py    # Guided activities endpoints
+│   │   │   ├── history.py       # Prompt history endpoints
+│   │   │   └── auth.py          # Auth endpoints
 │   │   └── seed/
 │   │       └── activities.py    # Seed data for guided activities
 │   ├── requirements.txt
 │   ├── Dockerfile
+│   ├── pytest.ini
 │   └── tests/
 ├── frontend/
 │   ├── src/

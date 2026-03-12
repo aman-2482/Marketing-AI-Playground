@@ -7,7 +7,7 @@ A hands-on playground where marketing professionals can practice Generative AI s
 ```bash
 # 1. Clone the repository
 git clone <repo-url>
-cd genai-marketing-lab
+cd Marketing-AI-Playground
 
 # 2. Add your API key
 cp .env.example .env
@@ -18,11 +18,15 @@ docker compose up --build
 
 # 4. Open your browser
 # App: http://localhost:3000
+
 # Admin Panel: http://localhost:3000/admin/login
+
 #   Username: admin
 #   Password: 112233
 #   (Change via ADMIN_USERNAME and ADMIN_PASSWORD env vars)
+
 # API Docs: http://localhost:8000/docs
+
 # Health Check: http://localhost:8000/api/health
 ```
 
@@ -65,7 +69,7 @@ SQLAdmin interface at `/admin` to manage activities and view usage data.
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
+| Frontend | React 19 + TypeScript + Vite |
 | UI | shadcn/ui + Tailwind CSS v4 |
 | Backend | FastAPI (Python 3.11) |
 | ORM | SQLAlchemy |
@@ -95,6 +99,20 @@ npm run dev
 
 Frontend runs at `http://localhost:5173` with API proxied to `http://localhost:8000`.
 
+## Testing
+
+Run backend tests in Docker (recommended):
+
+```powershell
+docker compose run --rm backend pytest
+```
+
+Run backend tests locally (if Python deps are installed):
+
+```powershell
+cd backend; python -m pytest
+```
+
 ## Project Structure
 
 ```
@@ -105,12 +123,13 @@ Frontend runs at `http://localhost:5173` with API proxied to `http://localhost:8
 │   │   ├── database.py       # SQLAlchemy setup
 │   │   ├── models.py         # DB models (Activity, PromptHistory)
 │   │   ├── schemas.py        # Pydantic schemas
-│   │   ├── ai_service.py     # Claude API integration
+│   │   ├── ai_service.py     # OpenRouter multi-model integration
 │   │   ├── admin.py          # SQLAdmin config
 │   │   ├── routers/
 │   │   │   ├── playground.py # Free playground + A/B compare
 │   │   │   ├── activities.py # Guided activities CRUD + generate
-│   │   │   └── history.py    # Prompt history management
+│   │   │   ├── history.py    # Prompt history management
+│   │   │   └── auth.py       # Register/login/session token endpoints
 │   │   └── seed/
 │   │       └── activities.py # 8 guided activities seed data
 │   ├── Dockerfile
@@ -144,6 +163,9 @@ Frontend runs at `http://localhost:5173` with API proxied to `http://localhost:8
 | GET | `/api/history/` | List prompt history |
 | PATCH | `/api/history/{id}/favorite` | Toggle favorite |
 | DELETE | `/api/history/{id}` | Delete history entry |
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Login and receive auth token |
+| GET | `/api/auth/me` | Validate token and return current user |
 
 ## Environment Variables
 

@@ -47,7 +47,7 @@ Build the GenAI Marketing Lab with:
 6. Admin Panel via SQLAdmin
 
 Tech: FastAPI + SQLAlchemy + SQLAdmin backend, React + shadcn/ui + Tailwind frontend,
-Docker Compose, Anthropic Claude API
+Docker Compose, OpenRouter API (multi-model: Claude/GPT/Gemini/Mistral/etc.)
 ```
 
 ## Prompt 3: Backend Implementation
@@ -56,9 +56,11 @@ Docker Compose, Anthropic Claude API
 Create the FastAPI backend with:
 - SQLAlchemy models for activities and prompt_history
 - Pydantic schemas for request/response validation
-- AI service module wrapping Anthropic Claude API
+- AI service module wrapping OpenRouter chat completions API with model whitelist
 - Router for free playground (POST /api/playground/generate)
 - Router for guided activities (GET /api/activities, POST /api/activities/{slug}/generate)
+- Router for history (GET /api/history, PATCH favorite, DELETE entry)
+- Router for auth (register/login/me)
 - SQLAdmin for database management
 - Seed data for all guided activities
 - Error handling, CORS, environment variables
@@ -83,9 +85,32 @@ Create the React frontend with:
 ```
 Create Docker setup:
 - Backend Dockerfile (Python 3.11)
-- Frontend Dockerfile (Node 18, multi-stage build)
+- Frontend Dockerfile (Node 22, multi-stage build)
 - docker-compose.yml running both services
 - Nginx config to serve frontend and proxy API
 - .env.example with all required variables
 - Should work with: docker compose up
+```
+
+## Prompt 6: Authentication
+
+```
+Add simple user authentication for the learning app:
+- Create register and login endpoints
+- Store users and issued tokens in the database
+- Add a /api/auth/me endpoint to validate bearer tokens
+- Use secure password hashing and timing-safe comparisons
+- Protect frontend app routes with client-side auth checks
+- Keep admin panel auth separate from app-user auth
+```
+
+## Prompt 7: Testing & Validation
+
+```
+Add backend automated tests and test configuration:
+- Add pytest tests for core meta endpoints (/api/health and /api/models)
+- Add pytest.ini to define testpaths and asyncio fixture loop scope
+- Ensure tests run successfully in Docker with:
+   docker compose run --rm backend pytest
+- Document test commands in project docs for both Docker and local PowerShell usage
 ```
