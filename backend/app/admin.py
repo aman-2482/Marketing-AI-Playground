@@ -51,7 +51,8 @@ class ActivityAdmin(ModelView, model=Activity):
     form_excluded_columns = [Activity.created_at]
     
     name = "Activity"
-    icon = "fa-solid fa-list"
+    name_plural = "Activities"
+    icon = "fa-solid fa-list-check"
 
 
 class PromptHistoryAdmin(ModelView, model=PromptHistory):
@@ -67,7 +68,8 @@ class PromptHistoryAdmin(ModelView, model=PromptHistory):
     column_sortable_list = [PromptHistory.id, PromptHistory.created_at]
     column_default_sort = (PromptHistory.created_at, True)
     name = "Prompt History"
-    icon = "fa-solid fa-clock-rotate-left"
+    name_plural = "Prompt Histories"
+    icon = "fa-solid fa-history"
 
 
 class UserAdmin(ModelView, model=User):
@@ -75,8 +77,9 @@ class UserAdmin(ModelView, model=User):
     column_searchable_list = [User.username, User.email]
     column_sortable_list = [User.id, User.username, User.email, User.created_at]
     form_excluded_columns = [User.created_at]
-    name = "Users"
-    icon = "fa-solid fa-users"
+    name = "User"
+    name_plural = "Users"
+    icon = "fa-solid fa-user-group"
 
 
 def setup_admin(app, engine) -> Admin:
