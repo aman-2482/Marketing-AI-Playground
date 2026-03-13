@@ -1,10 +1,17 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Zap, Sparkles, SquarePen, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { generatePlayground, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
+import {
+  deleteHistory,
+  generatePlayground,
+  generatePlaygroundStream,
+  listHistory,
+  toggleFavorite,
+  type HistoryEntry,
+} from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +50,7 @@ export default function Playground() {
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => { loadPlaygroundHistory(); }, []);
 
@@ -99,21 +107,33 @@ export default function Playground() {
     setLoading(true);
     setError("");
     setOutput("");
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const result = await generatePlayground({
+      await generatePlaygroundStream({
         prompt,
         system_prompt: systemPrompt,
         temperature,
         model,
         session_id: getSessionId(),
-      });
-      setOutput(result.response);
-      loadPlaygroundHistory();
+      }, (chunk) => {
+        setOutput((prev) => prev + chunk);
+      }, controller.signal);
+      await loadPlaygroundHistory();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation stopped");
+      } else {
+        setError(err instanceof Error ? err.message : "Generation failed");
+      }
     } finally {
+      abortRef.current = null;
       setLoading(false);
     }
+  }
+
+  function handleStopGeneration() {
+    abortRef.current?.abort();
   }
 
   async function handleCopy() {
@@ -234,17 +254,19 @@ export default function Playground() {
             <div className="flex items-center justify-between mt-3">
               <span className="text-xs text-slate-400 dark:text-slate-500">{prompt.length} chars</span>
               <button
-                onClick={handleGenerate}
-                disabled={loading || !prompt.trim()}
+                onClick={loading ? handleStopGeneration : handleGenerate}
+                disabled={!loading && !prompt.trim()}
                 className={cn(
                   "inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all",
-                  loading || !prompt.trim()
+                  !loading && !prompt.trim()
                     ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
-                    : "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
+                    : loading
+                      ? "bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                      : "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
                 )}
               >
                 <Zap className="w-3.5 h-3.5" />
-                {loading ? "Generating…" : "Generate"}
+                {loading ? "Stop" : "Generate"}
               </button>
             </div>
           </div>

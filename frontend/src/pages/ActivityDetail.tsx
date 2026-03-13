@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { getActivity, generateActivity, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
+import { getActivity, generateActivityStream, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { markActivityCompleted } from "@/lib/progress";
 import { ICON_MAP, DEFAULT_ICON, cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export default function ActivityDetail() {
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
   const [mobileOutputExpanded, setMobileOutputExpanded] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   function clearFieldValidation(name: string) {
@@ -152,23 +153,35 @@ export default function ActivityDetail() {
     setInvalidFields(new Set());
     setError("");
     setOutput("");
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const result = await generateActivity(slug, {
+      await generateActivityStream(slug, {
         prompt,
         session_id: getSessionId(),
         temperature,
         model,
-      });
-      setOutput(result.response);
+      }, (chunk) => {
+        setOutput((prev) => prev + chunk);
+      }, controller.signal);
       if (slug) markActivityCompleted(slug);
       setLastFormData(formData);
       setFormData({});
-      loadActivityHistory();
+      await loadActivityHistory();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation stopped");
+      } else {
+        setError(err instanceof Error ? err.message : "Generation failed");
+      }
     } finally {
+      abortRef.current = null;
       setLoading(false);
     }
+  }
+
+  function handleStopGeneration() {
+    abortRef.current?.abort();
   }
 
   if (!activity) {
@@ -409,17 +422,16 @@ export default function ActivityDetail() {
             </div>
 
             <button
-              onClick={handleGenerate}
-              disabled={loading}
+              onClick={loading ? handleStopGeneration : handleGenerate}
               className={cn(
                 "w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all",
                 loading
-                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                    ? "bg-red-600 hover:bg-red-700 text-white shadow-sm"
                   : "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
               )}
             >
               <Zap className="w-3.5 h-3.5" />
-              {loading ? "Generating…" : "Generate"}
+              {loading ? "Stop" : "Generate"}
             </button>
           </div>
 

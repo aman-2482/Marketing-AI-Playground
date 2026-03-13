@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
-import { comparePrompts, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
+import { comparePromptsStream, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -135,6 +135,7 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const outputRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [pastComparisons, setPastComparisons] = useState<PastComparison[]>([]);
   const [expandedPastId, setExpandedPastId] = useState<number | null>(null);
 
@@ -181,8 +182,10 @@ export default function Compare() {
     setOutputA("");
     setOutputB("");
     setOutputC("");
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const result = await comparePrompts({
+      await comparePromptsStream({
         prompt_a: promptA,
         prompt_b: promptB,
         prompt_c: promptC,
@@ -192,20 +195,31 @@ export default function Compare() {
         model_a: modelA,
         model_b: modelB,
         model_c: modelC,
-      });
-      setOutputA(result.response_a);
-      setOutputB(result.response_b);
-      setOutputC(result.response_c ?? "");
-      setUsedModelA(result.model_a);
-      setUsedModelB(result.model_b);
-      setUsedModelC(result.model_c ?? "");
-      void loadCompareHistory();
+      }, ({ lane, chunk }) => {
+        if (lane === "a") setOutputA((prev) => prev + chunk);
+        if (lane === "b") setOutputB((prev) => prev + chunk);
+        if (lane === "c") setOutputC((prev) => prev + chunk);
+      }, ({ model_a, model_b, model_c }) => {
+        setUsedModelA(model_a);
+        setUsedModelB(model_b);
+        setUsedModelC(model_c ?? "");
+      }, controller.signal);
+      await loadCompareHistory();
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Comparison failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Comparison stopped");
+      } else {
+        setError(err instanceof Error ? err.message : "Comparison failed");
+      }
     } finally {
+      abortRef.current = null;
       setLoading(false);
     }
+  }
+
+  function handleStopCompare() {
+    abortRef.current?.abort();
   }
 
   function loadExperiment(exp: (typeof EXPERIMENTS)[number]) {
@@ -329,17 +343,19 @@ export default function Compare() {
             />
           </div>
           <button
-            onClick={handleCompare}
-            disabled={!canCompare}
+            onClick={loading ? handleStopCompare : handleCompare}
+            disabled={!loading && !canCompare}
             className={cn(
               "inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0",
-              canCompare
-                ? "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+              loading
+                ? "bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                : canCompare
+                  ? "bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
             )}
           >
             <GitCompare className="w-4 h-4" />
-            {loading ? "Comparing..." : "Compare A/B/C"}
+            {loading ? "Stop" : "Compare A/B/C"}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 
 from openai import OpenAI
 
@@ -6,7 +7,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-5"
+FALLBACK_DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 # Models available through OpenRouter for selection in the UI
 AVAILABLE_MODELS: list[dict[str, str]] = [
@@ -22,7 +23,25 @@ AVAILABLE_MODELS: list[dict[str, str]] = [
 
 _VALID_MODEL_IDS = {m["id"] for m in AVAILABLE_MODELS}
 
+DEFAULT_MODEL = (
+    settings.default_model
+    if settings.default_model in _VALID_MODEL_IDS
+    else FALLBACK_DEFAULT_MODEL
+)
+
+if settings.default_model not in _VALID_MODEL_IDS:
+    logger.warning(
+        "DEFAULT_MODEL=%r is not in AVAILABLE_MODELS; falling back to %r",
+        settings.default_model,
+        FALLBACK_DEFAULT_MODEL,
+    )
+
 _client: OpenAI | None = None
+
+
+def validate_model(model: str) -> None:
+    if model not in _VALID_MODEL_IDS:
+        raise ValueError(f"Unknown model: {model!r}. Choose one of: {sorted(_VALID_MODEL_IDS)}")
 
 
 def _get_client() -> OpenAI:
@@ -47,8 +66,7 @@ def generate_content(
     model: str = DEFAULT_MODEL,
 ) -> str:
     """Send a single-turn message via OpenRouter and return the text response."""
-    if model not in _VALID_MODEL_IDS:
-        raise ValueError(f"Unknown model: {model!r}. Choose one of: {sorted(_VALID_MODEL_IDS)}")
+    validate_model(model)
     try:
         completion = _get_client().chat.completions.create(
             model=model,
@@ -62,4 +80,35 @@ def generate_content(
         return completion.choices[0].message.content or ""
     except Exception as exc:
         logger.error("OpenRouter API error: %s", exc)
+        raise
+
+
+def stream_content(
+    prompt: str,
+    system_prompt: str = "You are a helpful marketing assistant.",
+    temperature: float = 0.7,
+    model: str = DEFAULT_MODEL,
+) -> Iterator[str]:
+    """Stream partial text chunks from OpenRouter as they are generated."""
+    validate_model(model)
+    try:
+        stream = _get_client().chat.completions.create(
+            model=model,
+            max_tokens=settings.max_tokens,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            stream=True,
+        )
+
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+    except Exception as exc:
+        logger.error("OpenRouter streaming API error: %s", exc)
         raise

@@ -1,9 +1,11 @@
 import logging
+from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.ai_service import DEFAULT_MODEL, generate_content
+from app.ai_service import DEFAULT_MODEL, generate_content, stream_content, validate_model
 from app.config import settings
 from app.database import get_db
 from app.models import Activity, PromptHistory
@@ -76,3 +78,56 @@ def activity_generate(
     db.commit()
 
     return ActivityGenerateResponse(response=response, activity_slug=slug, prompt=req.prompt, model=model)
+
+
+@router.post("/{slug}/generate/stream")
+@limiter.limit(settings.rate_limit)
+def activity_generate_stream(
+    request: Request,
+    slug: str,
+    req: ActivityGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Stream AI content for a guided activity and save final output to history."""
+    activity = db.query(Activity).filter(Activity.slug == slug).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    model = req.model or DEFAULT_MODEL
+    try:
+        validate_model(model)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    response_parts: list[str] = []
+
+    def chunk_iterator() -> Iterator[str]:
+        try:
+            for chunk in stream_content(
+                prompt=req.prompt,
+                system_prompt=activity.system_prompt,
+                temperature=req.temperature,
+                model=model,
+            ):
+                response_parts.append(chunk)
+                yield chunk
+        except Exception:
+            logger.exception("Activity streaming generation failed for slug=%s", slug)
+            return
+        finally:
+            response = "".join(response_parts)
+            if response:
+                db.add(
+                    PromptHistory(
+                        session_id=req.session_id,
+                        activity_slug=slug,
+                        prompt=req.prompt,
+                        system_prompt=activity.system_prompt,
+                        response=response,
+                        model=model,
+                        temperature=req.temperature,
+                    )
+                )
+                db.commit()
+
+    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8")
