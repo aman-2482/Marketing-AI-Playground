@@ -20,10 +20,8 @@ docker compose up --build
 # App: http://localhost:3000
 
 # Admin Panel: http://localhost:3000/admin/login
-
 #   Username: admin
 #   Password: change-me
-
 #   (Change via ADMIN_USERNAME and ADMIN_PASSWORD env vars)
 
 # API Docs: http://localhost:8000/docs
