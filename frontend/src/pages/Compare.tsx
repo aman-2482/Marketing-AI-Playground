@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { comparePromptsStream, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,8 @@ export default function Compare() {
   const abortRef = useRef<AbortController | null>(null);
   const [pastComparisons, setPastComparisons] = useState<PastComparison[]>([]);
   const [expandedPastId, setExpandedPastId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { void loadCompareHistory(); }, []);
 
@@ -165,13 +168,18 @@ export default function Compare() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+  async function handleDeleteConfirm() {
+    if (deleteTargetId === null) return;
+    setDeleting(true);
     try {
-      await deleteHistory(id);
-      setPastComparisons((prev) => prev.filter((e) => e.id !== id));
+      await deleteHistory(deleteTargetId);
+      setPastComparisons((prev) => prev.filter((e) => e.id !== deleteTargetId));
+      setExpandedPastId((prev) => (prev === deleteTargetId ? null : prev));
+      setDeleteTargetId(null);
     } catch {
       // ignore
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -471,7 +479,7 @@ export default function Compare() {
                         <Star className={cn("w-3.5 h-3.5", past.isFavorite ? "fill-amber-500 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); void handleDelete(past.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTargetId(past.id); }}
                         className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-300 dark:text-slate-600 transition-colors"
                         title="Delete"
                       >
@@ -508,6 +516,18 @@ export default function Compare() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete history entry?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTargetId(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

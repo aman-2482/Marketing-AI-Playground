@@ -38,6 +38,7 @@ class PromptHistory(Base):
     model = Column(String(100), default="anthropic/claude-sonnet-4-5")
     temperature = Column(Float, default=0.7)
     is_favorite = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:

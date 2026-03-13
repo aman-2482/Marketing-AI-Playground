@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
@@ -45,10 +46,29 @@ def _seed_activities() -> None:
         db.close()
 
 
+def _ensure_prompt_history_soft_delete_column() -> None:
+    """Add prompt_history.is_deleted for existing databases without migrations."""
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    if "prompt_history" not in table_names:
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("prompt_history")}
+    if "is_deleted" in columns:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE prompt_history ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0")
+        )
+    logger.info("Added prompt_history.is_deleted column for soft delete support.")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Create database tables and seed data before serving requests."""
     Base.metadata.create_all(bind=engine)
+    _ensure_prompt_history_soft_delete_column()
     _seed_activities()
     yield
 

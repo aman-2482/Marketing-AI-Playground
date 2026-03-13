@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   deleteHistory,
   generatePlayground,
@@ -50,6 +51,8 @@ export default function Playground() {
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => { loadPlaygroundHistory(); }, []);
@@ -68,12 +71,18 @@ export default function Playground() {
     } catch { /* ignore */ }
   }
 
-  async function handleHistoryDelete(id: number) {
-    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+  async function handleHistoryDeleteConfirm() {
+    if (deleteTargetId === null) return;
+    setDeleting(true);
     try {
-      await deleteHistory(id);
-      setHistoryEntries((prev: HistoryEntry[]) => prev.filter((e) => e.id !== id));
+      await deleteHistory(deleteTargetId);
+      setHistoryEntries((prev: HistoryEntry[]) => prev.filter((e) => e.id !== deleteTargetId));
+      setExpandedHistoryId((prev) => (prev === deleteTargetId ? null : prev));
+      setDeleteTargetId(null);
     } catch { /* ignore */ }
+    finally {
+      setDeleting(false);
+    }
   }
 
   function handleNewPrompt() {
@@ -337,7 +346,7 @@ export default function Playground() {
                         <Star className={cn("w-3.5 h-3.5", entry.is_favorite ? "fill-amber-500 text-amber-500" : "text-slate-400 dark:text-slate-600")} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleHistoryDelete(entry.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTargetId(entry.id); }}
                         className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-600 transition-colors"
                         title="Delete"
                       >
@@ -357,6 +366,18 @@ export default function Playground() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete history entry?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTargetId(null);
+        }}
+        onConfirm={handleHistoryDeleteConfirm}
+      />
     </div>
   );
 }

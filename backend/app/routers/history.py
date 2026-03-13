@@ -17,7 +17,10 @@ def list_history(
     """Return prompt history for a session, newest first."""
     return (
         db.query(PromptHistory)
-        .filter(PromptHistory.session_id == session_id)
+        .filter(
+            PromptHistory.session_id == session_id,
+            PromptHistory.is_deleted.is_(False),
+        )
         .order_by(PromptHistory.created_at.desc())
         .limit(limit)
         .all()
@@ -31,7 +34,14 @@ def toggle_favorite(
     db: Session = Depends(get_db),
 ):
     """Toggle the favorite flag on a history entry."""
-    entry = db.query(PromptHistory).filter(PromptHistory.id == history_id).first()
+    entry = (
+        db.query(PromptHistory)
+        .filter(
+            PromptHistory.id == history_id,
+            PromptHistory.is_deleted.is_(False),
+        )
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="History entry not found")
     entry.is_favorite = body.is_favorite
@@ -42,10 +52,17 @@ def toggle_favorite(
 
 @router.delete("/{history_id}")
 def delete_history(history_id: int, db: Session = Depends(get_db)):
-    """Delete a single history entry."""
-    entry = db.query(PromptHistory).filter(PromptHistory.id == history_id).first()
+    """Soft-delete a single history entry."""
+    entry = (
+        db.query(PromptHistory)
+        .filter(
+            PromptHistory.id == history_id,
+            PromptHistory.is_deleted.is_(False),
+        )
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="History entry not found")
-    db.delete(entry)
+    entry.is_deleted = True
     db.commit()
     return {"detail": "Deleted"}

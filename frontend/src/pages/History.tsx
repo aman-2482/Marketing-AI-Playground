@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Star, Trash2, ChevronDown, ChevronUp, Clock, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import MarkdownOutput from "@/components/MarkdownOutput";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,8 @@ export default function History() {
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -77,13 +80,18 @@ export default function History() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+  async function handleDeleteConfirm() {
+    if (deleteTargetId === null) return;
+    setDeleting(true);
     try {
-      await deleteHistory(id);
-      setEntries((prev) => prev.filter((e) => e.id !== id));
+      await deleteHistory(deleteTargetId);
+      setEntries((prev) => prev.filter((e) => e.id !== deleteTargetId));
+      setExpandedId((prev) => (prev === deleteTargetId ? null : prev));
+      setDeleteTargetId(null);
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -259,7 +267,7 @@ export default function History() {
                       />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTargetId(entry.id); }}
                       className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-600 transition-colors"
                       title="Delete"
                     >
@@ -362,6 +370,18 @@ export default function History() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete history entry?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTargetId(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
