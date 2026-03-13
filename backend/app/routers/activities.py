@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.ai_service import DEFAULT_MODEL, generate_content, stream_content, validate_model
+from app.ai_service import (
+    DEFAULT_MODEL,
+    ensure_openrouter_api_key,
+    generate_content,
+    stream_content,
+    validate_model,
+)
 from app.config import settings
 from app.database import get_db
 from app.models import Activity, PromptHistory
@@ -96,6 +102,7 @@ def activity_generate_stream(
     model = req.model or DEFAULT_MODEL
     try:
         validate_model(model)
+        ensure_openrouter_api_key()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

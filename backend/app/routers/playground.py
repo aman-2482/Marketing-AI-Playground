@@ -8,7 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.ai_service import DEFAULT_MODEL, generate_content, stream_content, validate_model
+from app.ai_service import (
+    DEFAULT_MODEL,
+    ensure_openrouter_api_key,
+    generate_content,
+    stream_content,
+    validate_model,
+)
 from app.config import settings
 from app.database import get_db
 from app.models import PromptHistory
@@ -74,6 +80,7 @@ def playground_generate_stream(
     model = req.model or DEFAULT_MODEL
     try:
         validate_model(model)
+        ensure_openrouter_api_key()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -206,6 +213,7 @@ def playground_compare_stream(
         validate_model(model_b)
         if model_c:
             validate_model(model_c)
+        ensure_openrouter_api_key()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

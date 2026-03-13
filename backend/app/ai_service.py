@@ -39,6 +39,14 @@ if settings.default_model not in _VALID_MODEL_IDS:
 _client: OpenAI | None = None
 
 
+def ensure_openrouter_api_key() -> None:
+    """Ensure OPENROUTER_API_KEY is configured before making API calls."""
+    if not settings.openrouter_api_key:
+        raise ValueError(
+            "OpenRouter API key is missing. Add OPENROUTER_API_KEY to your .env file."
+        )
+
+
 def validate_model(model: str) -> None:
     if model not in _VALID_MODEL_IDS:
         raise ValueError(f"Unknown model: {model!r}. Choose one of: {sorted(_VALID_MODEL_IDS)}")
@@ -48,10 +56,7 @@ def _get_client() -> OpenAI:
     """Return the OpenRouter singleton client, initialising it on first call."""
     global _client
     if _client is None:
-        if not settings.openrouter_api_key:
-            raise ValueError(
-                "OPENROUTER_API_KEY is not set. Add it to your .env file."
-            )
+        ensure_openrouter_api_key()
         _client = OpenAI(
             base_url=settings.openrouter_base_url,
             api_key=settings.openrouter_api_key,
