@@ -42,9 +42,7 @@ _client: OpenAI | None = None
 def ensure_openrouter_api_key() -> None:
     """Ensure OPENROUTER_API_KEY is configured before making API calls."""
     if not settings.openrouter_api_key:
-        raise ValueError(
-            "OpenRouter API key is missing. Add OPENROUTER_API_KEY to your .env file."
-        )
+        raise ValueError("Please add your OpenRouter API key.")
 
 
 def validate_model(model: str) -> None:
