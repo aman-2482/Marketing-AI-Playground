@@ -38,12 +38,13 @@ Open-ended prompt interface where marketers can experiment with any marketing ta
 - Full prompt history with favorites
 
 ### Guided Activities
-8 structured exercises with objectives, instructions, tips, and pre-filled examples:
+9 structured exercises with objectives, instructions, tips, and pre-filled examples:
 
 | Activity | What You Practice |
 |----------|------------------|
 | **Social Media Post Generator** | Platform-specific copy, hashtags, tone control |
 | **Email Campaign Builder** | Subject lines, body copy, CTAs, email types |
+| **Competitive Intelligence Lab** | Competitor analysis, market gaps, differentiation and messaging strategy |
 | **Ad Copy Workshop** | Headlines within character limits, A/B ad variations |
 | **Brand Voice Lab** | Defining brand voice, testing consistency across channels |
 | **Content Repurposer** | Transforming one piece of content into multiple formats |
@@ -130,7 +131,7 @@ cd backend; python -m pytest
 │   │   │   ├── history.py    # Prompt history management
 │   │   │   └── auth.py       # Register/login/session token endpoints
 │   │   └── seed/
-│   │       └── activities.py # 8 guided activities seed data
+│   │       └── activities.py # 9 guided activities seed data
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
