@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useMatch, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Zap,
@@ -19,11 +19,11 @@ import { cn } from "@/lib/utils";
 import { getAuthUser, clearAuthUser } from "@/lib/auth";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard",      end: true  },
-  { to: "/playground", icon: Zap,            label: "AI Playground",  end: false },
-  { to: "/activities", icon: BookOpen,       label: "Activities",     end: false },
-  { to: "/compare",    icon: FlaskConical,   label: "Experiment Lab", end: false },
-  { to: "/history",    icon: History,        label: "My History",     end: false },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", end: true },
+  { to: "/playground", icon: Zap, label: "AI Playground", end: false },
+  { to: "/activities", icon: BookOpen, label: "Activities", end: false },
+  { to: "/compare", icon: FlaskConical, label: "Experiment Lab", end: false },
+  { to: "/history", icon: History, label: "My History", end: false },
 ];
 
 const TIPS = [
@@ -37,14 +37,36 @@ const TIPS = [
   "Test the same prompt at different temperatures to feel the difference.",
 ];
 
+function sectionKey(to: string) {
+  return `last_path_${to}`;
+}
+function saveLastPath(navTo: string, currentPath: string) {
+  sessionStorage.setItem(sectionKey(navTo), currentPath);
+}
+function getLastPath(navTo: string): string {
+  return sessionStorage.getItem(sectionKey(navTo)) || navTo;
+}
+
 function NavItem({ to, icon: Icon, label, end }: (typeof NAV_ITEMS)[number]) {
   const match = useMatch({ path: to, end });
   const isActive = !!match;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  function handleClick(e: React.MouseEvent) {
+    if (location.pathname.startsWith(to)) return;
+    const saved = getLastPath(to);
+    if (saved !== to) {
+      e.preventDefault();
+      navigate(saved);
+    }
+  }
 
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={handleClick}
       className={cn(
         "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
         isActive
@@ -66,7 +88,19 @@ function NavItem({ to, icon: Icon, label, end }: (typeof NAV_ITEMS)[number]) {
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const matchingNav = NAV_ITEMS.find((item) =>
+      location.pathname.startsWith(item.to) && item.to !== "/dashboard"
+    );
+    if (matchingNav) {
+      saveLastPath(matchingNav.to, location.pathname);
+    }
+  }, [location.pathname]);
+
   const authUser = getAuthUser();
+
   const [tipIndex, setTipIndex] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
@@ -132,6 +166,11 @@ export default function Layout() {
               key={to}
               to={to}
               end={end}
+              onClick={(e) => {
+                if (location.pathname.startsWith(to)) return;
+                const saved = getLastPath(to);
+                if (saved !== to) { e.preventDefault(); navigate(saved); }
+              }}
               className={({ isActive }) =>
                 cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",

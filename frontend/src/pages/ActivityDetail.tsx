@@ -6,10 +6,18 @@ import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { getActivity, generateActivityStream, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
+import { getActivity, generatePlayground, listHistory, toggleFavorite, deleteHistory, type Activity, type InputField, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { markActivityCompleted } from "@/lib/progress";
 import { ICON_MAP, DEFAULT_ICON, cn } from "@/lib/utils";
+import {
+  getStreamState,
+  startStream,
+  attachDisplay,
+  detachDisplay,
+  stopStream,
+  clearStream,
+} from "@/lib/generationStore";
 
 type Tab = "activity" | "instructions";
 
@@ -34,8 +42,9 @@ export default function ActivityDetail() {
   const [deleting, setDeleting] = useState(false);
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
   const [mobileOutputExpanded, setMobileOutputExpanded] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
 
   function clearFieldValidation(name: string) {
     setInvalidFields((prev) => {
@@ -123,18 +132,51 @@ export default function ActivityDetail() {
 
   useEffect(() => {
     if (!slug) return;
+
+    // Restore any in-progress or completed generation state for this slug
+    const saved = getStreamState();
+    if (saved?.slug === slug) {
+      setOutput(saved.output);
+      setLoading(saved.loading);
+    }
+
+    // Re-attach display callbacks so new Worker chunks flow to this component
+    attachDisplay(
+      (text) => setOutput((prev) => prev + text),
+      () => {
+        setLoading(false);
+        if (slug) {
+          markActivityCompleted(slug);
+          setLastFormData(formDataRef.current);
+          setFormData({});
+          clearStream(slug);
+          loadActivityHistory();
+        }
+      },
+      (msg) => {
+        setError(msg === "Generation stopped" ? "Generation stopped" : msg);
+        setLoading(false);
+        clearStream(slug);
+      }
+    );
+
     getActivity(slug).then((a) => {
       setActivity(a);
       const parsed: InputField[] = JSON.parse(a.input_fields);
       setFields(parsed);
       try {
         const examples = JSON.parse(a.example_inputs);
-        setFormData(examples);
+        // Only prefill form when there's no active/saved generation
+        const current = getStreamState();
+        if (!current || current.slug !== slug) setFormData(examples);
       } catch {
         setFormData({});
       }
     });
     loadActivityHistory();
+
+    // On unmount: detach callbacks but leave the Worker running
+    return () => detachDisplay();
   }, [slug]);
 
   function buildPrompt(): string {
@@ -158,39 +200,27 @@ export default function ActivityDetail() {
       focusFirstInvalidField(allFieldNames);
       return;
     }
+
     setLoading(true);
     setInvalidFields(new Set());
     setError("");
     setOutput("");
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      await generateActivityStream(slug, {
-        prompt,
-        session_id: getSessionId(),
-        temperature,
-        model,
-      }, (chunk) => {
-        setOutput((prev) => prev + chunk);
-      }, controller.signal);
-      if (slug) markActivityCompleted(slug);
-      setLastFormData(formData);
-      setFormData({});
-      await loadActivityHistory();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Generation stopped");
-      } else {
-        setError(err instanceof Error ? err.message : "Generation failed");
-      }
-    } finally {
-      abortRef.current = null;
-      setLoading(false);
-    }
+
+    const data = {
+      prompt,
+      session_id: getSessionId(),
+      temperature,
+      model,
+    };
+
+    startStream(slug, data);
   }
 
   function handleStopGeneration() {
-    abortRef.current?.abort();
+    stopStream();
+    setLoading(false);
+    setError("Generation stopped");
+    clearStream(slug!);
   }
 
   if (!activity) {

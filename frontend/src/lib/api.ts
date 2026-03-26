@@ -72,6 +72,47 @@ export async function generatePlaygroundStream(
   }
 }
 
+export function createPlaygroundStreamWorker(
+  data: {
+    prompt: string;
+    system_prompt?: string;
+    temperature?: number;
+    session_id?: string;
+    model?: string;
+  },
+  onChunk: (chunk: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+): Worker {
+  const worker = new Worker("/stream-worker.js");
+
+  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string }>) => {
+    const { type, text, message } = e.data;
+    if (type === "chunk" && text) {
+      onChunk(text);
+    } else if (type === "done") {
+      onDone();
+    } else if (type === "error") {
+      onError(message || "Stream error");
+    }
+  };
+
+  worker.onerror = (err: ErrorEvent) => {
+    onError(err.message || "Worker error");
+  };
+
+  worker.postMessage({
+    type: "start",
+    url: `${location.origin}${API_BASE}/playground/generate/stream`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    mode: "raw",
+  });
+
+  return worker;
+}
+
 export function comparePrompts(data: {
   prompt_a: string;
   prompt_b: string;
@@ -192,10 +233,80 @@ export async function comparePromptsStream(
   }
 }
 
+type ComparePayload = {
+  lane?: "a" | "b" | "c";
+  chunk?: string;
+  done?: boolean;
+  error?: string;
+  model_a?: string;
+  model_b?: string;
+  model_c?: string | null;
+};
 
-// ---------------------------------------------------------------------------
-// Activities
-// ---------------------------------------------------------------------------
+function handleCompareLine(
+  line: string,
+  onChunk: (payload: { lane: "a" | "b" | "c"; chunk: string }) => void,
+  onDone: (payload: { model_a: string; model_b: string; model_c?: string | null }) => void,
+) {
+  if (!line.trim()) return;
+  const payload = JSON.parse(line) as ComparePayload;
+  if (payload.error) throw new Error(payload.error);
+  if (payload.done) {
+    onDone({ model_a: payload.model_a || "", model_b: payload.model_b || "", model_c: payload.model_c });
+  } else if (payload.lane && payload.chunk) {
+    onChunk({ lane: payload.lane, chunk: payload.chunk });
+  }
+}
+
+export function createCompareStreamWorker(
+  data: {
+    prompt_a: string;
+    prompt_b: string;
+    prompt_c?: string;
+    system_prompt?: string;
+    temperature?: number;
+    session_id?: string;
+    model_a?: string;
+    model_b?: string;
+    model_c?: string;
+  },
+  onChunk: (payload: { lane: "a" | "b" | "c"; chunk: string }) => void,
+  onDone: (payload: { model_a: string; model_b: string; model_c?: string | null }) => void,
+  onError: (error: string) => void
+): Worker {
+  const worker = new Worker("/stream-worker.js");
+
+  worker.onmessage = (e: MessageEvent<{ type: string; line?: string; message?: string }>) => {
+    const { type, line, message } = e.data;
+    if (type === "json_line" && line) {
+      try {
+        handleCompareLine(line, onChunk, onDone);
+      } catch (err) {
+        onError(err instanceof Error ? err.message : "Parse error");
+      }
+    } else if (type === "done") {
+      // Done state logic handled via NDJSON {done: true} in handleCompareLine
+    } else if (type === "error") {
+      onError(message || "Stream error");
+    }
+  };
+
+  worker.onerror = (err: ErrorEvent) => {
+    onError(err.message || "Worker error");
+  };
+
+  worker.postMessage({
+    type: "start",
+    url: `${location.origin}${API_BASE}/playground/compare/stream`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    mode: "ndjson",
+  });
+
+  return worker;
+}
+
 
 export interface Activity {
   id: number;
@@ -275,6 +386,41 @@ export async function generateActivityStream(
   }
 }
 
+export function createActivityStreamWorker(
+  slug: string,
+  data: { prompt: string; session_id?: string; temperature?: number; model?: string },
+  onChunk: (chunk: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+): Worker {
+  const worker = new Worker("/stream-worker.js");
+
+  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string }>) => {
+    const { type, text, message } = e.data;
+    if (type === "chunk" && text) {
+      onChunk(text);
+    } else if (type === "done") {
+      onDone();
+    } else if (type === "error") {
+      onError(message || "Stream error");
+    }
+  };
+
+  worker.onerror = (err: ErrorEvent) => {
+    onError(err.message || "Worker error");
+  };
+
+  worker.postMessage({
+    type: "start",
+    url: `${location.origin}${API_BASE}/activities/${slug}/generate/stream`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    mode: "raw",
+  });
+
+  return worker;
+}
 
 // ---------------------------------------------------------------------------
 // Models
@@ -290,9 +436,6 @@ export function listModels() {
 }
 
 
-// ---------------------------------------------------------------------------
-// History
-// ---------------------------------------------------------------------------
 
 export interface HistoryEntry {
   id: number;

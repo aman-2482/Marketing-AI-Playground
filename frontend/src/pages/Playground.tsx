@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Check, Zap, Sparkles, SquarePen, Clock, Star, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -8,13 +8,20 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   deleteHistory,
   generatePlayground,
-  generatePlaygroundStream,
   listHistory,
   toggleFavorite,
   type HistoryEntry,
 } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import {
+  getPlaygroundState,
+  startPlaygroundStream,
+  attachPlaygroundDisplay,
+  detachPlaygroundDisplay,
+  stopPlaygroundStream,
+  clearPlaygroundStream,
+} from "@/lib/playgroundStore";
 
 const SYSTEM_PRESETS = [
   {
@@ -53,7 +60,30 @@ export default function Playground() {
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+
+
+  // Restore any in-progress or saved generation on mount, re-attach display callbacks
+  useEffect(() => {
+    const saved = getPlaygroundState();
+    if (saved.output || saved.loading) {
+      setOutput(saved.output);
+      setLoading(saved.loading);
+    }
+    attachPlaygroundDisplay(
+      (text) => setOutput((prev) => prev + text),
+      () => {
+        setLoading(false);
+        clearPlaygroundStream();
+        loadPlaygroundHistory();
+      },
+      (msg) => {
+        setError(msg);
+        setLoading(false);
+        clearPlaygroundStream();
+      }
+    );
+    return () => detachPlaygroundDisplay();
+  }, []);
 
   useEffect(() => { loadPlaygroundHistory(); }, []);
 
@@ -116,33 +146,20 @@ export default function Playground() {
     setLoading(true);
     setError("");
     setOutput("");
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      await generatePlaygroundStream({
-        prompt,
-        system_prompt: systemPrompt,
-        temperature,
-        model,
-        session_id: getSessionId(),
-      }, (chunk) => {
-        setOutput((prev) => prev + chunk);
-      }, controller.signal);
-      await loadPlaygroundHistory();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Generation stopped");
-      } else {
-        setError(err instanceof Error ? err.message : "Generation failed");
-      }
-    } finally {
-      abortRef.current = null;
-      setLoading(false);
-    }
+    startPlaygroundStream({
+      prompt,
+      system_prompt: systemPrompt,
+      temperature,
+      model,
+      session_id: getSessionId(),
+    });
   }
 
   function handleStopGeneration() {
-    abortRef.current?.abort();
+    stopPlaygroundStream();
+    setLoading(false);
+    setError("Generation stopped");
+    clearPlaygroundStream();
   }
 
   async function handleCopy() {

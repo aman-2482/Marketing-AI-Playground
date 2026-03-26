@@ -5,9 +5,17 @@ import { Slider } from "@/components/ui/slider";
 import MarkdownOutput from "@/components/MarkdownOutput";
 import ModelSelector from "@/components/ModelSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { comparePromptsStream, listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
+import { listHistory, toggleFavorite, deleteHistory, type HistoryEntry } from "@/lib/api";
 import { getSessionId } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import {
+  getCompareState,
+  startCompareStream,
+  attachCompareDisplay,
+  detachCompareDisplay,
+  stopCompareStream,
+  clearCompareStream,
+} from "@/lib/compareStore";
 
 interface PastComparison {
   id: number;
@@ -136,13 +144,48 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const outputRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+
   const [pastComparisons, setPastComparisons] = useState<PastComparison[]>([]);
   const [expandedPastId, setExpandedPastId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { void loadCompareHistory(); }, []);
+
+  // Restore any in-progress generation on mount and re-attach display callbacks
+  useEffect(() => {
+    const saved = getCompareState();
+    if (saved.outputA || saved.outputB || saved.outputC || saved.loading) {
+      setOutputA(saved.outputA);
+      setOutputB(saved.outputB);
+      setOutputC(saved.outputC);
+      setUsedModelA(saved.usedModelA);
+      setUsedModelB(saved.usedModelB);
+      setUsedModelC(saved.usedModelC);
+      setLoading(saved.loading);
+    }
+    attachCompareDisplay(
+      ({ lane, chunk }) => {
+        if (lane === "a") setOutputA((p) => p + chunk);
+        if (lane === "b") setOutputB((p) => p + chunk);
+        if (lane === "c") setOutputC((p) => p + chunk);
+      },
+      ({ model_a, model_b, model_c }) => {
+        setUsedModelA(model_a);
+        setUsedModelB(model_b);
+        setUsedModelC(model_c ?? "");
+        setLoading(false);
+        clearCompareStream();
+        loadCompareHistory();
+      },
+      (msg) => {
+        setError(msg);
+        setLoading(false);
+        clearCompareStream();
+      }
+    );
+    return () => detachCompareDisplay();
+  }, []);
 
   async function loadCompareHistory() {
     try {
@@ -190,44 +233,24 @@ export default function Compare() {
     setOutputA("");
     setOutputB("");
     setOutputC("");
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      await comparePromptsStream({
-        prompt_a: promptA,
-        prompt_b: promptB,
-        prompt_c: promptC,
-        system_prompt: systemPrompt,
-        temperature,
-        session_id: getSessionId(),
-        model_a: modelA,
-        model_b: modelB,
-        model_c: modelC,
-      }, ({ lane, chunk }) => {
-        if (lane === "a") setOutputA((prev) => prev + chunk);
-        if (lane === "b") setOutputB((prev) => prev + chunk);
-        if (lane === "c") setOutputC((prev) => prev + chunk);
-      }, ({ model_a, model_b, model_c }) => {
-        setUsedModelA(model_a);
-        setUsedModelB(model_b);
-        setUsedModelC(model_c ?? "");
-      }, controller.signal);
-      await loadCompareHistory();
-      setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Comparison stopped");
-      } else {
-        setError(err instanceof Error ? err.message : "Comparison failed");
-      }
-    } finally {
-      abortRef.current = null;
-      setLoading(false);
-    }
+    startCompareStream({
+      prompt_a: promptA,
+      prompt_b: promptB,
+      prompt_c: promptC,
+      system_prompt: systemPrompt,
+      temperature,
+      session_id: getSessionId(),
+      model_a: modelA,
+      model_b: modelB,
+      model_c: modelC,
+    });
   }
 
   function handleStopCompare() {
-    abortRef.current?.abort();
+    stopCompareStream();
+    setLoading(false);
+    setError("Comparison stopped");
+    clearCompareStream();
   }
 
   function loadExperiment(exp: (typeof EXPERIMENTS)[number]) {
