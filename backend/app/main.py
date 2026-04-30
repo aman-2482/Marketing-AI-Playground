@@ -64,11 +64,33 @@ def _ensure_prompt_history_soft_delete_column() -> None:
     logger.info("Added prompt_history.is_deleted column for soft delete support.")
 
 
+def _ensure_activity_icon_length() -> None:
+    """Expand activities.icon to avoid truncation when seeding data."""
+    if "sqlite" in settings.database_url:
+        return
+
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    if "activities" not in table_names:
+        return
+
+    columns = {column["name"]: column["type"] for column in inspector.get_columns("activities")}
+    icon_type = columns.get("icon")
+    icon_length = getattr(icon_type, "length", None)
+    if icon_length is None or icon_length >= 50:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE activities ALTER COLUMN icon TYPE VARCHAR(50)"))
+    logger.info("Expanded activities.icon column to VARCHAR(50).")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Create database tables and seed data before serving requests."""
     Base.metadata.create_all(bind=engine)
     _ensure_prompt_history_soft_delete_column()
+    _ensure_activity_icon_length()
     _seed_activities()
     yield
 

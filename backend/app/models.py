@@ -12,7 +12,7 @@ class Activity(Base):
     slug = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=False)
     category = Column(String(50), nullable=False)
-    icon = Column(String(10), default="")
+    icon = Column(String(50), default="")
     instructions = Column(Text, nullable=False)
     tips = Column(Text, default="")
     example_inputs = Column(Text, default="{}")   # JSON string
