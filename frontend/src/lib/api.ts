@@ -1,4 +1,5 @@
-const API_BASE = "/api";
+const API_ORIGIN = import.meta.env.VITE_API_URL || "";
+const API_BASE = `${API_ORIGIN}/api`;
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
@@ -103,7 +104,7 @@ export function createPlaygroundStreamWorker(
 
   worker.postMessage({
     type: "start",
-    url: `${location.origin}${API_BASE}/playground/generate/stream`,
+    url: `${API_BASE}/playground/generate/stream`,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
