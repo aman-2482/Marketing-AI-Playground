@@ -532,6 +532,8 @@ export interface AuthResponse {
   username: string;
   email: string;
   user_id: number;
+  trial_minutes: number;
+  trial_seconds_used: number;
 }
 
 export function registerUser(data: {
@@ -550,5 +552,12 @@ export function loginUser(data: { username: string; password: string }) {
   return request<AuthResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export function sendTrialPing(seconds: number) {
+  return request<{ status: string; trial_seconds_used: number; expired: boolean }>("/auth/ping", {
+    method: "POST",
+    body: JSON.stringify({ seconds }),
   });
 }

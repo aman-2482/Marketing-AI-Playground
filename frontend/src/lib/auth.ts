@@ -3,6 +3,8 @@ export interface AuthUser {
   username: string;
   email: string;
   userId: number;
+  trialMinutes: number;
+  trialSecondsUsed: number;
 }
 
 const KEY = "auth_user";

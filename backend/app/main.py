@@ -82,6 +82,24 @@ def _ensure_user_trial_minutes_column() -> None:
     logger.info("Added users.trial_minutes column for adjustable free trials.")
 
 
+def _ensure_user_trial_seconds_column() -> None:
+    """Add users.trial_seconds_used for existing databases."""
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    if "users" not in table_names:
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    if "trial_seconds_used" in columns:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN trial_seconds_used INTEGER NOT NULL DEFAULT 0")
+        )
+    logger.info("Added users.trial_seconds_used column for active screen time trials.")
+
+
 def _ensure_activity_icon_length() -> None:
     """Expand activities.icon to avoid truncation when seeding data."""
     if "sqlite" in settings.database_url:
@@ -109,6 +127,7 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _ensure_prompt_history_soft_delete_column()
     _ensure_user_trial_minutes_column()
+    _ensure_user_trial_seconds_column()
     _ensure_activity_icon_length()
     _seed_activities()
     yield

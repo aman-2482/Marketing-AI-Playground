@@ -14,9 +14,11 @@ import {
   Moon,
   LogOut,
   User,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAuthUser, clearAuthUser } from "@/lib/auth";
+import { getAuthUser, clearAuthUser, type AuthUser } from "@/lib/auth";
+import { sendTrialPing } from "@/lib/api";
 
 const NAV_ITEMS = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -83,6 +85,63 @@ function NavItem({ to, icon: Icon, label, end }: (typeof NAV_ITEMS)[number]) {
       <span className="flex-1">{label}</span>
       {isActive && <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
     </NavLink>
+  );
+}
+
+function TrialTimer({ authUser }: { authUser: AuthUser }) {
+  const navigate = useNavigate();
+  const maxSeconds = authUser.trialMinutes * 60;
+  const [usedSeconds, setUsedSeconds] = useState(authUser.trialSecondsUsed);
+  const remaining = Math.max(0, maxSeconds - usedSeconds);
+  const isUrgent = remaining < 60;
+
+  if (authUser.username === "admin") return null;
+
+  useEffect(() => {
+    if (remaining === 0) {
+      clearAuthUser();
+      navigate("/subscription", { replace: true });
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        setUsedSeconds((prev) => prev + 1);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [remaining, navigate]);
+
+  useEffect(() => {
+    const syncInterval = setInterval(async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const res = await sendTrialPing(10);
+          if (res.expired) {
+            clearAuthUser();
+            navigate("/subscription", { replace: true });
+          }
+        } catch (e) {
+          // Ignore network errors on ping
+        }
+      }
+    }, 10000);
+    return () => clearInterval(syncInterval);
+  }, [navigate]);
+
+  const m = Math.floor(remaining / 60).toString().padStart(2, "0");
+  const s = (remaining % 60).toString().padStart(2, "0");
+
+  return (
+    <div className={cn(
+      "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors",
+      isUrgent 
+        ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 animate-pulse" 
+        : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+    )}>
+      <Clock className="w-3.5 h-3.5" />
+      <span className="text-xs font-semibold font-mono">{m}:{s}</span>
+    </div>
   );
 }
 
@@ -194,6 +253,9 @@ export default function Layout() {
           >
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
+
+          {/* Trial Timer */}
+          {authUser && <TrialTimer authUser={authUser} />}
 
           {/* User info */}
           {authUser && (

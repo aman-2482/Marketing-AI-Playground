@@ -58,7 +58,14 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = _create_token(user.id, db)
-    return AuthResponse(token=token, username=user.username, email=user.email, user_id=user.id)
+    return AuthResponse(
+        token=token, 
+        username=user.username, 
+        email=user.email, 
+        user_id=user.id,
+        trial_minutes=user.trial_minutes,
+        trial_seconds_used=user.trial_seconds_used
+    )
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -67,19 +74,20 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if not user or not _verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    # 10-minute trial check (allow admin to bypass)
+    # Active screen time trial check (allow admin to bypass)
     if user.username != "admin":
-        if user.created_at:
-            # Ensure created_at is timezone aware if not already
-            created_at = user.created_at
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            
-            if datetime.now(timezone.utc) - created_at > timedelta(minutes=user.trial_minutes):
-                raise HTTPException(status_code=403, detail="TRIAL_EXPIRED")
+        if user.trial_seconds_used >= (user.trial_minutes * 60):
+            raise HTTPException(status_code=403, detail="TRIAL_EXPIRED")
 
     token = _create_token(user.id, db)
-    return AuthResponse(token=token, username=user.username, email=user.email, user_id=user.id)
+    return AuthResponse(
+        token=token, 
+        username=user.username, 
+        email=user.email, 
+        user_id=user.id,
+        trial_minutes=user.trial_minutes,
+        trial_seconds_used=user.trial_seconds_used
+    )
 
 
 def get_current_user(authorization: str = Header(default=""), db: Session = Depends(get_db)) -> User:
@@ -95,15 +103,10 @@ def get_current_user(authorization: str = Header(default=""), db: Session = Depe
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    # 10-minute trial check (allow admin to bypass)
+    # Active screen time trial check (allow admin to bypass)
     if user.username != "admin":
-        if user.created_at:
-            created_at = user.created_at
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            
-            if datetime.now(timezone.utc) - created_at > timedelta(minutes=user.trial_minutes):
-                raise HTTPException(status_code=403, detail="TRIAL_EXPIRED")
+        if user.trial_seconds_used >= (user.trial_minutes * 60):
+            raise HTTPException(status_code=403, detail="TRIAL_EXPIRED")
 
     return user
 
@@ -122,4 +125,27 @@ def me(authorization: str = Header(default=""), db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    return AuthResponse(token=token, username=user.username, email=user.email, user_id=user.id)
+    return AuthResponse(
+        token=token, 
+        username=user.username, 
+        email=user.email, 
+        user_id=user.id,
+        trial_minutes=user.trial_minutes,
+        trial_seconds_used=user.trial_seconds_used
+    )
+
+from pydantic import BaseModel
+
+class PingRequest(BaseModel):
+    seconds: int
+
+@router.post("/ping")
+def ping(data: PingRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.username == "admin":
+        return {"status": "ok", "trial_seconds_used": user.trial_seconds_used}
+        
+    user.trial_seconds_used += data.seconds
+    db.commit()
+    
+    expired = user.trial_seconds_used >= (user.trial_minutes * 60)
+    return {"status": "ok", "trial_seconds_used": user.trial_seconds_used, "expired": expired}

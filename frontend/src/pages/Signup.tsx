@@ -31,7 +31,14 @@ export default function Signup() {
         password: form.password,
         confirm_password: form.confirm_password,
       });
-      setAuthUser({ token: res.token, username: res.username, email: res.email, userId: res.user_id });
+      setAuthUser({ 
+        token: res.token, 
+        username: res.username, 
+        email: res.email, 
+        userId: res.user_id,
+        trialMinutes: res.trial_minutes,
+        trialSecondsUsed: res.trial_seconds_used
+      });
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");

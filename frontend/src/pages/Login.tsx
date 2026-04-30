@@ -25,7 +25,14 @@ export default function Login() {
     setError("");
     try {
       const res = await loginUser({ username: form.username.trim(), password: form.password });
-      setAuthUser({ token: res.token, username: res.username, email: res.email, userId: res.user_id });
+      setAuthUser({ 
+        token: res.token, 
+        username: res.username, 
+        email: res.email, 
+        userId: res.user_id,
+        trialMinutes: res.trial_minutes,
+        trialSecondsUsed: res.trial_seconds_used
+      });
       navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message === "TRIAL_EXPIRED") {

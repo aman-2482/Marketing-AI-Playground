@@ -162,3 +162,5 @@ class AuthResponse(BaseModel):
     username: str
     email: str
     user_id: int
+    trial_minutes: int
+    trial_seconds_used: int
