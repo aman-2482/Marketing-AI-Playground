@@ -119,7 +119,12 @@ def playground_generate_stream(
                 )
                 db.commit()
 
-    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8")
+    headers = {
+        "X-Accel-Buffering": "no",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8", headers=headers)
 
 
 @router.post("/compare", response_model=ABCompareResponse)
@@ -318,4 +323,9 @@ def playground_compare_stream(
             }
         ) + "\n"
 
-    return StreamingResponse(stream_iterator(), media_type="application/x-ndjson")
+    headers = {
+        "X-Accel-Buffering": "no",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(stream_iterator(), media_type="application/x-ndjson", headers=headers)

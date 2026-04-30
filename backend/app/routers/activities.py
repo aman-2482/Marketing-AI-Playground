@@ -141,4 +141,9 @@ def activity_generate_stream(
                 )
                 db.commit()
 
-    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8")
+    headers = {
+        "X-Accel-Buffering": "no",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8", headers=headers)
