@@ -17,7 +17,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAuthUser, clearAuthUser, type AuthUser } from "@/lib/auth";
+import { getAuthUser, clearAuthUser, setAuthUser, type AuthUser } from "@/lib/auth";
 import { sendTrialPing } from "@/lib/api";
 
 const NAV_ITEMS = [
@@ -120,6 +120,13 @@ function TrialTimer({ authUser }: { authUser: AuthUser }) {
           if (res.expired) {
             clearAuthUser();
             navigate("/subscription", { replace: true });
+          } else {
+            setUsedSeconds(res.trial_seconds_used);
+            const currentUser = getAuthUser();
+            if (currentUser) {
+              currentUser.trialSecondsUsed = res.trial_seconds_used;
+              setAuthUser(currentUser);
+            }
           }
         } catch (e) {
           // Ignore network errors on ping
