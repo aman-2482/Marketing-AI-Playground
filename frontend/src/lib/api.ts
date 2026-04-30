@@ -19,6 +19,10 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Request failed" }));
+    if (error.detail === "TRIAL_EXPIRED") {
+      localStorage.removeItem("auth_user");
+      window.location.href = "/subscription";
+    }
     throw new Error(error.detail || `HTTP ${res.status}`);
   }
   return res.json();
@@ -62,6 +66,10 @@ export async function generatePlaygroundStream(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Request failed" }));
+    if (error.detail === "TRIAL_EXPIRED") {
+      localStorage.removeItem("auth_user");
+      window.location.href = "/subscription";
+    }
     throw new Error(error.detail || `HTTP ${res.status}`);
   }
 
@@ -114,7 +122,12 @@ export function createPlaygroundStreamWorker(
     } else if (type === "done") {
       onDone();
     } else if (type === "error") {
-      onError(message || "Stream error");
+      if (message === "TRIAL_EXPIRED") {
+        localStorage.removeItem("auth_user");
+        window.location.href = "/subscription";
+      } else {
+        onError(message || "Stream error");
+      }
     }
   };
 
@@ -308,7 +321,12 @@ export function createCompareStreamWorker(
     } else if (type === "done") {
       // Done state logic handled via NDJSON {done: true} in handleCompareLine
     } else if (type === "error") {
-      onError(message || "Stream error");
+      if (message === "TRIAL_EXPIRED") {
+        localStorage.removeItem("auth_user");
+        window.location.href = "/subscription";
+      } else {
+        onError(message || "Stream error");
+      }
     }
   };
 
@@ -385,6 +403,10 @@ export async function generateActivityStream(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Request failed" }));
+    if (error.detail === "TRIAL_EXPIRED") {
+      localStorage.removeItem("auth_user");
+      window.location.href = "/subscription";
+    }
     throw new Error(error.detail || `HTTP ${res.status}`);
   }
 
@@ -432,7 +454,12 @@ export function createActivityStreamWorker(
     } else if (type === "done") {
       onDone();
     } else if (type === "error") {
-      onError(message || "Stream error");
+      if (message === "TRIAL_EXPIRED") {
+        localStorage.removeItem("auth_user");
+        window.location.href = "/subscription";
+      } else {
+        onError(message || "Stream error");
+      }
     }
   };
 

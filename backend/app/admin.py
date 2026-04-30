@@ -73,7 +73,7 @@ class PromptHistoryAdmin(ModelView, model=PromptHistory):
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.email, User.created_at]
+    column_list = [User.id, User.username, User.email, User.trial_minutes, User.created_at]
     column_searchable_list = [User.username, User.email]
     column_sortable_list = [User.id, User.username, User.email, User.created_at]
     form_excluded_columns = [User.created_at]

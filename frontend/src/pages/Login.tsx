@@ -28,6 +28,10 @@ export default function Login() {
       setAuthUser({ token: res.token, username: res.username, email: res.email, userId: res.user_id });
       navigate(from, { replace: true });
     } catch (err) {
+      if (err instanceof Error && err.message === "TRIAL_EXPIRED") {
+        navigate("/subscription", { replace: true });
+        return;
+      }
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);

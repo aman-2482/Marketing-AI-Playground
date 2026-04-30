@@ -10,6 +10,7 @@ import Activities from "@/pages/Activities";
 import ActivityDetail from "@/pages/ActivityDetail";
 import Compare from "@/pages/Compare";
 import History from "@/pages/History";
+import Subscription from "@/pages/Subscription";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/subscription" element={<Subscription />} />
 
         {/* Protected app shell */}
         <Route element={<ProtectedRoute />}>

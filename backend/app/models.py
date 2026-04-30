@@ -52,6 +52,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(200), unique=True, nullable=False, index=True)
     password_hash = Column(String(300), nullable=False)
+    trial_minutes = Column(Integer, default=10, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
