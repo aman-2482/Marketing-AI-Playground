@@ -1,3 +1,4 @@
+import json
 import logging
 from collections.abc import Iterator
 
@@ -121,10 +122,10 @@ def activity_generate_stream(
                 model=model,
             ):
                 response_parts.append(chunk)
-                yield chunk
+                yield json.dumps({"chunk": chunk}) + "\n"
         except Exception as exc:
             logger.exception("Activity streaming generation failed for slug=%s", slug)
-            yield "\n\n[Notice] " + user_facing_openrouter_error(exc, model)
+            yield json.dumps({"error": user_facing_openrouter_error(exc, model)}) + "\n"
         finally:
             response = "".join(response_parts)
             if response:
@@ -140,10 +141,11 @@ def activity_generate_stream(
                     )
                 )
                 db.commit()
+            yield json.dumps({"done": True}) + "\n"
 
     headers = {
         "X-Accel-Buffering": "no",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
     }
-    return StreamingResponse(chunk_iterator(), media_type="text/plain; charset=utf-8", headers=headers)
+    return StreamingResponse(chunk_iterator(), media_type="application/x-ndjson", headers=headers)

@@ -98,10 +98,19 @@ export function createPlaygroundStreamWorker(
 ): Worker {
   const worker = new Worker("/stream-worker.js");
 
-  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string }>) => {
-    const { type, text, message } = e.data;
+  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string; line?: string }>) => {
+    const { type, text, message, line } = e.data;
     if (type === "chunk" && text) {
       onChunk(text);
+    } else if (type === "json_line" && line) {
+      try {
+        const payload = JSON.parse(line);
+        if (payload.error) onError(payload.error);
+        else if (payload.done) onDone();
+        else if (payload.chunk) onChunk(payload.chunk);
+      } catch (err) {
+        // ignore
+      }
     } else if (type === "done") {
       onDone();
     } else if (type === "error") {
@@ -119,7 +128,7 @@ export function createPlaygroundStreamWorker(
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
-    mode: "raw",
+    mode: "ndjson",
   });
 
   return worker;
@@ -407,10 +416,19 @@ export function createActivityStreamWorker(
 ): Worker {
   const worker = new Worker("/stream-worker.js");
 
-  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string }>) => {
-    const { type, text, message } = e.data;
+  worker.onmessage = (e: MessageEvent<{ type: string; text?: string; message?: string; line?: string }>) => {
+    const { type, text, message, line } = e.data;
     if (type === "chunk" && text) {
       onChunk(text);
+    } else if (type === "json_line" && line) {
+      try {
+        const payload = JSON.parse(line);
+        if (payload.error) onError(payload.error);
+        else if (payload.done) onDone();
+        else if (payload.chunk) onChunk(payload.chunk);
+      } catch (err) {
+        // ignore
+      }
     } else if (type === "done") {
       onDone();
     } else if (type === "error") {
@@ -428,7 +446,7 @@ export function createActivityStreamWorker(
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
-    mode: "raw",
+    mode: "ndjson",
   });
 
   return worker;
