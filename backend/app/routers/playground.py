@@ -18,7 +18,8 @@ from app.ai_service import (
 )
 from app.config import settings
 from app.database import get_db
-from app.models import PromptHistory
+from app.models import PromptHistory, User
+from app.routers.auth import get_current_user
 from app.rate_limit import limiter
 from app.schemas import (
     ABCompareRequest,
@@ -38,6 +39,7 @@ def playground_generate(
     request: Request,
     req: PlaygroundRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Generate content from a free-form prompt and save it to history."""
     model = req.model or DEFAULT_MODEL
@@ -76,6 +78,7 @@ def playground_generate_stream(
     request: Request,
     req: PlaygroundRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Stream generated content chunks as plain text and save final output to history."""
     model = req.model or DEFAULT_MODEL
@@ -125,6 +128,7 @@ def playground_compare(
     request: Request,
     req: ABCompareRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Generate responses for up to three prompts side-by-side and save to history."""
     model_a = req.model_a or DEFAULT_MODEL
@@ -203,6 +207,7 @@ def playground_compare_stream(
     request: Request,
     req: ABCompareRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Stream lane-tagged compare chunks as NDJSON and save combined history when complete."""
     model_a = req.model_a or DEFAULT_MODEL

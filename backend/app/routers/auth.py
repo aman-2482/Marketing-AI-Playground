@@ -70,6 +70,22 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     return AuthResponse(token=token, username=user.username, email=user.email, user_id=user.id)
 
 
+def get_current_user(authorization: str = Header(default=""), db: Session = Depends(get_db)) -> User:
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_token = db.query(UserToken).filter(UserToken.token == token).first()
+    if not user_token:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.id == user_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
+
+
 @router.get("/me", response_model=AuthResponse)
 def me(authorization: str = Header(default=""), db: Session = Depends(get_db)):
     token = authorization.removeprefix("Bearer ").strip()

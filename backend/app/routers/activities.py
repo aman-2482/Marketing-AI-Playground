@@ -15,7 +15,8 @@ from app.ai_service import (
 )
 from app.config import settings
 from app.database import get_db
-from app.models import Activity, PromptHistory
+from app.models import Activity, PromptHistory, User
+from app.routers.auth import get_current_user
 from app.rate_limit import limiter
 from app.schemas import ActivityGenerateRequest, ActivityGenerateResponse, ActivityOut
 
@@ -51,6 +52,7 @@ def activity_generate(
     slug: str,
     req: ActivityGenerateRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Generate AI content for a guided activity and save it to history."""
     activity = db.query(Activity).filter(Activity.slug == slug).first()
@@ -94,6 +96,7 @@ def activity_generate_stream(
     slug: str,
     req: ActivityGenerateRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Stream AI content for a guided activity and save final output to history."""
     activity = db.query(Activity).filter(Activity.slug == slug).first()

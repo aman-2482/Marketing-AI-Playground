@@ -1,9 +1,20 @@
 const API_ORIGIN = import.meta.env.VITE_API_URL || "";
 const API_BASE = `${API_ORIGIN}/api`;
 
+function getAuthHeader(): Record<string, string> {
+  const raw = localStorage.getItem("auth_user");
+  if (!raw) return {};
+  try {
+    const user = JSON.parse(raw);
+    return user.token ? { Authorization: `Bearer ${user.token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     ...options,
   });
   if (!res.ok) {
@@ -44,7 +55,7 @@ export async function generatePlaygroundStream(
 ) {
   const res = await fetch(`${API_BASE}/playground/generate/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     signal,
   });
@@ -106,7 +117,7 @@ export function createPlaygroundStreamWorker(
     type: "start",
     url: new URL(`${API_BASE}/playground/generate/stream`, location.origin).toString(),
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     mode: "raw",
   });
@@ -156,7 +167,7 @@ export async function comparePromptsStream(
 ) {
   const res = await fetch(`${API_BASE}/playground/compare/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     signal,
   });
@@ -300,7 +311,7 @@ export function createCompareStreamWorker(
     type: "start",
     url: new URL(`${API_BASE}/playground/compare/stream`, location.origin).toString(),
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     mode: "ndjson",
   });
@@ -358,7 +369,7 @@ export async function generateActivityStream(
 ) {
   const res = await fetch(`${API_BASE}/activities/${slug}/generate/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     signal,
   });
@@ -415,7 +426,7 @@ export function createActivityStreamWorker(
     type: "start",
     url: new URL(`${API_BASE}/activities/${slug}/generate/stream`, location.origin).toString(),
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(data),
     mode: "raw",
   });
