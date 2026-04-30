@@ -13,6 +13,7 @@ from app.ai_service import (
     ensure_openrouter_api_key,
     generate_content,
     stream_content,
+    user_facing_openrouter_error,
     validate_model,
 )
 from app.config import settings
@@ -49,9 +50,9 @@ def playground_generate(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
+    except Exception as exc:
         logger.exception("Playground generation failed")
-        raise HTTPException(status_code=502, detail="AI generation failed. Please try again.")
+        raise HTTPException(status_code=502, detail=user_facing_openrouter_error(exc, model))
 
     db.add(
         PromptHistory(
@@ -96,9 +97,9 @@ def playground_generate_stream(
             ):
                 response_parts.append(chunk)
                 yield chunk
-        except Exception:
+        except Exception as exc:
             logger.exception("Playground streaming generation failed")
-            return
+            yield "\n\n[Notice] " + user_facing_openrouter_error(exc, model)
         finally:
             response = "".join(response_parts)
             if response:
@@ -154,9 +155,9 @@ def playground_compare(
             response_c = future_map["c"].result() if "c" in future_map else None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
+    except Exception as exc:
         logger.exception("Playground compare failed")
-        raise HTTPException(status_code=502, detail="AI generation failed. Please try again.")
+        raise HTTPException(status_code=502, detail=user_facing_openrouter_error(exc, model_a))
 
     db.add(
         PromptHistory(
@@ -238,9 +239,15 @@ def playground_compare_stream(
                     model=model,
                 ):
                     queue.put({"type": "chunk", "lane": label, "chunk": chunk})
-            except Exception:
+            except Exception as exc:
                 logger.exception("Compare streaming lane failed: %s", label)
-                queue.put({"type": "error", "lane": label})
+                queue.put(
+                    {
+                        "type": "error",
+                        "lane": label,
+                        "message": user_facing_openrouter_error(exc, model),
+                    }
+                )
             finally:
                 queue.put({"type": "done", "lane": label})
 
@@ -259,12 +266,13 @@ def playground_compare_stream(
                     response_parts[lane].append(chunk)
                     yield json.dumps({"lane": lane, "chunk": chunk}) + "\n"
                 elif event_type == "error":
-                    worker_error.append(lane)
+                    message = event.get("message") or "AI generation failed. Please try again."
+                    worker_error.append(f"lane {lane}: {message}")
                 elif event_type == "done":
                     completed += 1
 
         if worker_error:
-            yield json.dumps({"error": "AI generation failed. Please try again."}) + "\n"
+            yield json.dumps({"error": " ".join(worker_error)}) + "\n"
             return
 
         response_a = "".join(response_parts["a"])

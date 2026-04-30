@@ -10,6 +10,7 @@ from app.ai_service import (
     ensure_openrouter_api_key,
     generate_content,
     stream_content,
+    user_facing_openrouter_error,
     validate_model,
 )
 from app.config import settings
@@ -66,9 +67,9 @@ def activity_generate(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
+    except Exception as exc:
         logger.exception("Activity generation failed for slug=%s", slug)
-        raise HTTPException(status_code=502, detail="AI generation failed. Please try again.")
+        raise HTTPException(status_code=502, detail=user_facing_openrouter_error(exc, model))
 
     db.add(
         PromptHistory(
@@ -118,9 +119,9 @@ def activity_generate_stream(
             ):
                 response_parts.append(chunk)
                 yield chunk
-        except Exception:
+        except Exception as exc:
             logger.exception("Activity streaming generation failed for slug=%s", slug)
-            return
+            yield "\n\n[Notice] " + user_facing_openrouter_error(exc, model)
         finally:
             response = "".join(response_parts)
             if response:

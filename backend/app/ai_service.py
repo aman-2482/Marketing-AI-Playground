@@ -7,7 +7,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_DEFAULT_MODEL = "openai/gpt-4o-mini"
+FALLBACK_DEFAULT_MODEL = "deepseek/deepseek-chat"
 
 # Models available through OpenRouter for selection in the UI
 AVAILABLE_MODELS: list[dict[str, str]] = [
@@ -39,10 +39,31 @@ if settings.default_model not in _VALID_MODEL_IDS:
 _client: OpenAI | None = None
 
 
+def user_facing_openrouter_error(exc: Exception, model: str) -> str:
+    """Map provider exceptions to clear guidance for end users."""
+    status_code = getattr(exc, "status_code", None)
+    error_text = str(exc)
+    lower_text = error_text.lower()
+
+    if status_code == 402 or "402" in lower_text or "requires more credits" in lower_text or "afford" in lower_text:
+        return (
+            "We could not generate a response with the current model and plan limits. "
+            "Please switch to a lighter model and try again."
+        )
+
+    if status_code == 429 or "429" in lower_text or "rate limit" in lower_text or "too many requests" in lower_text:
+        return "Too many requests right now. Please wait a moment and try again."
+
+    if status_code == 401 or status_code == 403 or "api key" in lower_text or "unauthorized" in lower_text:
+        return "We could not authenticate this request. Please check your settings and try again."
+
+    return "We could not generate a response right now. Please try again in a moment or switch to a lighter model."
+
+
 def ensure_openrouter_api_key() -> None:
     """Ensure OPENROUTER_API_KEY is configured before making API calls."""
     if not settings.openrouter_api_key:
-        raise ValueError("Please add your OpenRouter API key.")
+        raise ValueError("AI service is not configured. Please contact support or try again later.")
 
 
 def validate_model(model: str) -> None:

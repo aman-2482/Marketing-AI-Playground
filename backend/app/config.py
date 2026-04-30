@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     # AI
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    default_model: str = "anthropic/claude-sonnet-4-5"
+    default_model: str = "deepseek/deepseek-chat"
     max_tokens: int = 4096
 
     # Database
