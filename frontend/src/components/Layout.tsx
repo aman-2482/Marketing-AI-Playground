@@ -116,7 +116,7 @@ function TrialTimer({ authUser }: { authUser: AuthUser }) {
     const syncInterval = setInterval(async () => {
       if (document.visibilityState === "visible") {
         try {
-          const res = await sendTrialPing(10);
+          const res = await sendTrialPing(2);
           if (res.expired) {
             clearAuthUser();
             navigate("/subscription", { replace: true });
@@ -132,7 +132,7 @@ function TrialTimer({ authUser }: { authUser: AuthUser }) {
           // Ignore network errors on ping
         }
       }
-    }, 10000);
+    }, 2000);
     return () => clearInterval(syncInterval);
   }, [navigate]);
 
