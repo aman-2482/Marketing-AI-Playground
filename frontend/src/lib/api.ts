@@ -104,7 +104,7 @@ export function createPlaygroundStreamWorker(
 
   worker.postMessage({
     type: "start",
-    url: `${API_BASE}/playground/generate/stream`,
+    url: new URL(`${API_BASE}/playground/generate/stream`, location.origin).toString(),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -298,7 +298,7 @@ export function createCompareStreamWorker(
 
   worker.postMessage({
     type: "start",
-    url: `${location.origin}${API_BASE}/playground/compare/stream`,
+    url: new URL(`${API_BASE}/playground/compare/stream`, location.origin).toString(),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -413,7 +413,7 @@ export function createActivityStreamWorker(
 
   worker.postMessage({
     type: "start",
-    url: `${location.origin}${API_BASE}/activities/${slug}/generate/stream`,
+    url: new URL(`${API_BASE}/activities/${slug}/generate/stream`, location.origin).toString(),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
